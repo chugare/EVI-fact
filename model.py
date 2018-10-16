@@ -184,7 +184,7 @@ class gated_evidence_fact_generation:
         gate_value = tf.TensorArray(tf.float32)
         attention_var_s = tf.get_variable('Attention_w',dtype=tf.float32,shape=[self.NUM_UNIT])
         attention_var_c = tf.get_variable('Attention_c',dtype=tf.float32,shape=[self.DECODER_NUM_UNIT])
-
+        i = tf.constant(0)
         def _gate_calc(state_seq,context_vec):
             gate_v = tf.maximum(tf.reduce_sum(state_seq*attention_var_s,1)) + tf.reduce_sum(attention_var_c*context_vec)
             return gate_v
@@ -208,6 +208,7 @@ class gated_evidence_fact_generation:
         evid_mat = tf.placeholder(dtype=tf.int32,shape=[self.MAX_EVIDS,self.MAX_EVID_LEN])
         evid_len = tf.placeholder(dtype=tf.int32,shape=[self.MAX_EVIDS])
         evid_count = tf.placeholder(dtype=tf.int32)
+        fact_mat = tf.placeholder(dtype=tf.int32,shape=[self.MAX_EVID_LEN])
         #可以设置直接从已有的词向量读入
         embedding_t = tf.get_variable('embedding_table',shape=[self.MAX_VOCA_SZIE,self.VEC_SIZE])
         evid_mat = tf.nn.embedding_lookup(embedding_t,evid_mat)
@@ -216,6 +217,7 @@ class gated_evidence_fact_generation:
         cells = self.get_cells()
 
         def _encoder_evid(i,state_ta,output_ta):
+
             state,output = gated_evidence_fact_generation.BiLSTMencoder(cells,evid_mat[i],evid_len)
             state_ta = state_ta.write(state)
             output_ta = output_ta.write(output)
@@ -231,17 +233,18 @@ class gated_evidence_fact_generation:
         decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT)
         run_state = decoder_cell.zero_state(self.BATCH_SIZE,tf.float32)
         output_seq = tf.TensorArray(size=3000,dynamic_size=True)
+        state_seq = tf.TensorArray(size=3000,dynamic_size=True)
         map_out_w = tf.get_variable('map_out',shape=[self.MAX_VOCA_SZIE,self.DECODER_NUM_UNIT],dtype=tf.float32,initializer=tf.truncated_normal_initializer())
         map_out_b = tf.get_variable('map_bias',shape=[self.MAX_VOCA_SZIE],dtype=tf.float32,initializer=tf.constant_initializer(0))
-        def _decoder_step(i,generated_seq,run_state):
-
-
+        i = tf.constant(0)
+        def _decoder_step(i,state_seq,generated_seq,run_state):
             choosed_state,index = self.gated_choose(state_ta,evid_len,context_vec)
             state,output = decoder_cell.call(output_ta[index],run_state)
-
-            generated_seq = generated_seq.write(output)
             dis_v = map_out_w*output+map_out_b
             dis_v = tf.nn.softmax(dis_v)
+            char_most_pro = tf.argmax(dis_v)
+            state_seq = state_seq.write(i,state)
+            generated_seq = generated_seq.write(i, char_most_pro)
             i = tf.add(i,1)
-            return i,generated_seq,run_state
-
+            return i,state_seq,generated_seq,state
+        _,state_seq,output_seq,_ = tf.while_loop(lambda i,sq,oq,s:i)
