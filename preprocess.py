@@ -213,6 +213,38 @@ class Preprocessor:
                         yield art_vecs, y_vecs
                         art_vecs = []
                         y_vecs = []
+        elif format_type =='GEFG':
+
+            # 将原始的证据分离输入，并且使用one-hot编码方式
+            # 输出格式为 一个数组表示所有的证据文本的one-hot编码，一个向量表示事实文本的one-hot编码
+            count = 0
+            try:
+                mel = meta['MEL']
+                mec = meta['MEC']
+                mfl = meta['MFL']
+                pass
+
+            except KeyError:
+                print('[ERROR] The meta data expected for data preparation required more info (require: C,V )')
+            for res in res_gen:
+                evids = res['evid']
+                fact = res['fact']
+                evid_vecs = []
+                evid_lens = []
+                for i in range(mec):
+                    if i<len(evids):
+                        evid_oh = self.ohencoder(evids[i])
+                        tmp_vec = np.array(evid_oh)
+                        padded_vec = np.concatenate((tmp_vec,np.zeros([mel-len(tmp_vec)])))
+                        evid_vecs.append(padded_vec)
+                        evid_lens.append(len(evid_oh))
+                    evid_vecs.append(np.zeros(mel))
+                    evid_lens.append(0)
+
+                fact_vec = self.ohencoder(fact)
+                fact_vec = np.concatenate([fact_vec,np.zeros([mfl-len(fact_vec)])])
+                yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,len(fact_vec)
+
         else:
             print("[ERROR] Declaration of format type is required")
     def data_format_eval(self, data_source,format_type, meta):

@@ -145,9 +145,11 @@ class gated_evidence_fact_generation:
         self.BATCH_SIZE = 1
         self.MAX_EVIDS = 50
         self.MAX_EVID_LEN = 2000
+        self.MAX_FACT_LEN = 2000
         self.MAX_VOCA_SZIE = 10000
         self.VEC_SIZE = 100
         self.DECODER_NUM_UNIT = 100
+        self.LR = 0.002
 
     def get_cells(self):
         fw_cell = tf.nn.rnn_cell.BasicLSTMCell(self.NUM_UNIT)
@@ -156,11 +158,12 @@ class gated_evidence_fact_generation:
         return [fw_cell,bw_cell]
 
     @staticmethod
-    def BiLSTMencoder(cells,input,seqLength,state=None):
+    def BiLSTMencoder(cells,input_vec,seqLength,state=None):
         fw_cell = cells[0]
         bw_cell = cells[1]
 
         __batch_size = 1
+        seqLength = tf.reshape(seqLength,[1])
         if state is None :
             init_state_fw = fw_cell.zero_state(__batch_size,tf.float32)
             init_state_bw = bw_cell.zero_state(__batch_size,tf.float32)
@@ -169,19 +172,23 @@ class gated_evidence_fact_generation:
             init_state_fw = state[0]
         else:
             print('[INFO] Require state with size 2')
-        output, en_states = tf.nn.bidirectional_dynamic_rnn(cell_fw=fw_cell,
+
+        input_vec = tf.reshape(input_vec,[1,input_vec.shape[0],input_vec.shape[1]])
+        en_states,output  = tf.nn.bidirectional_dynamic_rnn(cell_fw=fw_cell,
                                                             cell_bw=bw_cell,
-                                                            input=input,
+                                                            inputs=input_vec,
                                                             sequence_length=seqLength,
                                                             initial_state_fw=init_state_fw,
                                                             initial_state_bw=init_state_bw)
-
+        print(output[0])
         bi_en_states = tf.concat(en_states, 2)
-        output = tf.concat(output, 1)
+        print(bi_en_states)
+        output = tf.concat(output, 2)
+        print(output)
         return bi_en_states, output
-    def gated_choose(self,multi_states,evid_len,context_vec):
+    def gated_choose(self,multi_states,evid_len,evid_count,context_vec):
         #使用证据编码后的全部的隐层状态来计算gate值
-        gate_value = tf.TensorArray(tf.float32)
+        gate_value = tf.TensorArray(dtype=tf.float32,size=evid_count)
         attention_var_s = tf.get_variable('Attention_w',dtype=tf.float32,shape=[self.NUM_UNIT])
         attention_var_c = tf.get_variable('Attention_c',dtype=tf.float32,shape=[self.DECODER_NUM_UNIT])
         i = tf.constant(0)
@@ -190,25 +197,27 @@ class gated_evidence_fact_generation:
             return gate_v
         def _step(i,mul_states,context_vec,gate_value):
             state_vec = multi_states.read(i)
-            gate_value = gate_value.write(_gate_calc(state_vec,context_vec))
+
+            gate_value = gate_value.write(i,_gate_calc(state_vec,context_vec))
             i = tf.add(i,1)
             return i,multi_states,context_vec,gate_value
 
-        _,_,_,gate_value = tf.while_loop(lambda i,multi_states,context_vec,gate_value:i<evid_len[i],gate_choose,[i,multi_states,context_vec,gate_value])
+        _,_,_,gate_value = tf.while_loop(lambda i,multi_states,context_vec,gate_value:i<evid_len[i],_step,[i,multi_states,context_vec,gate_value])
         gate_value.stack()
         i = tf.argmax(gate_value)
         sen_vec = multi_states.read(i)
         return sen_vec,i
     def context_vec_gen(self,states):
-
-    def build_model(self,ops):
+        pass
+    def build_model(self,mode):
 
         # encoder part
         # 将以tensor形式输入的原始数据转化成可变的TensorArray格式
         evid_mat = tf.placeholder(dtype=tf.int32,shape=[self.MAX_EVIDS,self.MAX_EVID_LEN])
         evid_len = tf.placeholder(dtype=tf.int32,shape=[self.MAX_EVIDS])
         evid_count = tf.placeholder(dtype=tf.int32)
-        fact_mat = tf.placeholder(dtype=tf.int32,shape=[self.MAX_EVID_LEN])
+        fact_mat = tf.placeholder(dtype=tf.int32,shape=[self.MAX_FACT_LEN])
+        fact_len = tf.placeholder(dtype=tf.int32)
         #可以设置直接从已有的词向量读入
         embedding_t = tf.get_variable('embedding_table',shape=[self.MAX_VOCA_SZIE,self.VEC_SIZE])
         evid_mat = tf.nn.embedding_lookup(embedding_t,evid_mat)
@@ -218,33 +227,55 @@ class gated_evidence_fact_generation:
 
         def _encoder_evid(i,state_ta,output_ta):
 
-            state,output = gated_evidence_fact_generation.BiLSTMencoder(cells,evid_mat[i],evid_len)
-            state_ta = state_ta.write(state)
-            output_ta = output_ta.write(output)
+            state,output = gated_evidence_fact_generation.BiLSTMencoder(cells,evid_mat[i],evid_len[i])
+            state_ta = state_ta.write(i,state)
+            output_ta = output_ta.write(i,output)
             i = tf.add(i,1)
             return i,state_ta,output_ta
 
-        state_ta = tf.TensorArray(size=evid_count)
-        output_ta = tf.TensorArray(dynamic_size=True)
+        state_ta = tf.TensorArray(dtype=tf.float32,size=evid_count)
+        output_ta = tf.TensorArray(dtype=tf.float32,size=evid_count)
 
         _,state_ta,output_ta = tf.while_loop(lambda i,state_ta,output_ta:i<evid_count,_encoder_evid,(i,state_ta,output_ta))
 
-        context_vec = tf.constant(0,dtype=tf.float32,shape=[self.DECODER_NUM_UNIT])
         decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT)
         run_state = decoder_cell.zero_state(self.BATCH_SIZE,tf.float32)
-        output_seq = tf.TensorArray(size=3000,dynamic_size=True)
-        state_seq = tf.TensorArray(size=3000,dynamic_size=True)
+        output_seq = tf.TensorArray(dtype=tf.int32,size = fact_len)
+        state_seq = tf.TensorArray(dtype=tf.float32,size = fact_len)
         map_out_w = tf.get_variable('map_out',shape=[self.MAX_VOCA_SZIE,self.DECODER_NUM_UNIT],dtype=tf.float32,initializer=tf.truncated_normal_initializer())
         map_out_b = tf.get_variable('map_bias',shape=[self.MAX_VOCA_SZIE],dtype=tf.float32,initializer=tf.constant_initializer(0))
         i = tf.constant(0)
-        def _decoder_step(i,state_seq,generated_seq,run_state):
-            choosed_state,index = self.gated_choose(state_ta,evid_len,context_vec)
+        nll = tf.TensorArray(dtype=tf.float32,size = fact_len)
+        def _decoder_step(i,state_seq,generated_seq,run_state,nll):
+            context_vec = tf.cond(tf.equal(i,0),lambda:tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT]),
+                                  lambda:state_seq.read(tf.subtract(i,1)))
+            #计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验
+            choosed_state,index = self.gated_choose(state_ta,evid_len,evid_count,context_vec)
             state,output = decoder_cell.call(output_ta[index],run_state)
+            #生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
             dis_v = map_out_w*output+map_out_b
             dis_v = tf.nn.softmax(dis_v)
             char_most_pro = tf.argmax(dis_v)
+            if mode == 'train':
+                nll = nll.write(i,char_most_pro[fact_mat[i]])
+            #对每一个单词的分布取最大值
             state_seq = state_seq.write(i,state)
             generated_seq = generated_seq.write(i, char_most_pro)
+            #生成context向量
             i = tf.add(i,1)
-            return i,state_seq,generated_seq,state
-        _,state_seq,output_seq,_ = tf.while_loop(lambda i,sq,oq,s:i)
+            return i,state_seq,generated_seq,state,nll
+        _,state_seq,output_seq,_,nll = tf.while_loop(lambda i,sq,oq,s,nll:i<fact_len,_decoder_step,[i,state_seq,output_seq,run_state,nll])
+        nll = tf.reduce_mean(nll)
+        op = {
+            'evid_mat':evid_mat,
+            'evid_len':evid_len,
+            'evid_count':evid_count,
+            'state_seq':state_seq,
+            'output_seq':output_seq,
+            'nll':nll
+        }
+
+        return op
+    def train_op(self,nll):
+        adam = tf.train.AdamOptimizer(self.LR)
+        return adam.minimize(nll)
