@@ -18,6 +18,7 @@ with tf.Session() as sess:
     i = tf.constant(0)
     fw_cell = tf.nn.rnn_cell.BasicLSTMCell(200)
     bw_cell = tf.nn.rnn_cell.BasicLSTMCell(200)
+    print(fw_cell.state_size)
 
     embed_t = tf.get_variable(name='lookup',shape=[10000,2],initializer=tf.constant_initializer(2.0))
     evid_mat_embed = tf.nn.embedding_lookup(embed_t,evid_mat)

@@ -119,7 +119,7 @@ def train_GEFG():
                                                          ops['evid_len']: evid_len,
                                                          ops['evid_count']: evid_count,
                                                          ops['fact_mat']: fact_mat,
-                                                         ops['fact_len']:fact_len}
+                                                         ops['fact_len']: fact_len}
                                               )
 
                         print('[INFO] Batch %d 训练结果：    nll-  %.6f  ' % (batch_count, nll))

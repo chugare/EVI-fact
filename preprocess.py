@@ -238,8 +238,9 @@ class Preprocessor:
                         padded_vec = np.concatenate((tmp_vec,np.zeros([mel-len(tmp_vec)])))
                         evid_vecs.append(padded_vec)
                         evid_lens.append(len(evid_oh))
-                    evid_vecs.append(np.zeros(mel))
-                    evid_lens.append(0)
+                    else:
+                        evid_vecs.append(np.zeros(mel))
+                        evid_lens.append(0)
 
                 fact_vec = self.ohencoder(fact)
                 fact_vec = np.concatenate([fact_vec,np.zeros([mfl-len(fact_vec)])])

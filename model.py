@@ -143,9 +143,9 @@ class gated_evidence_fact_generation:
     def __init__(self):
         self.NUM_UNIT = 100
         self.BATCH_SIZE = 1
-        self.MAX_EVIDS = 50
-        self.MAX_EVID_LEN = 2000
-        self.MAX_FACT_LEN = 2000
+        self.MAX_EVIDS = 100
+        self.MAX_EVID_LEN = 5000
+        self.MAX_FACT_LEN = 3000
         self.MAX_VOCA_SZIE = 10000
         self.VEC_SIZE = 100
         self.DECODER_NUM_UNIT = 100
@@ -180,20 +180,19 @@ class gated_evidence_fact_generation:
                                                             sequence_length=seqLength,
                                                             initial_state_fw=init_state_fw,
                                                             initial_state_bw=init_state_bw)
-        print(output[0])
         bi_en_states = tf.concat(en_states, 2)
-        print(bi_en_states)
-        output = tf.concat(output, 2)
-        print(output)
+        output = tf.concat(output,2)[0]
+
         return bi_en_states, output
     def gated_choose(self,multi_states,evid_len,evid_count,context_vec):
         #使用证据编码后的全部的隐层状态来计算gate值
         gate_value = tf.TensorArray(dtype=tf.float32,size=evid_count)
-        attention_var_s = tf.get_variable('Attention_w',dtype=tf.float32,shape=[self.NUM_UNIT])
+        attention_var_s = tf.get_variable('Attention_w',dtype=tf.float32,shape=[self.NUM_UNIT*2,self.DECODER_NUM_UNIT])
         attention_var_c = tf.get_variable('Attention_c',dtype=tf.float32,shape=[self.DECODER_NUM_UNIT])
         i = tf.constant(0)
         def _gate_calc(state_seq,context_vec):
-            gate_v = tf.maximum(tf.reduce_sum(state_seq*attention_var_s,1)) + tf.reduce_sum(attention_var_c*context_vec)
+            state_seq = tf.reshape(state_seq,shape=[state_seq.shape[1],state_seq.shape[2]])
+            gate_v = tf.reduce_mean(tf.matmul(tf.matmul(state_seq,attention_var_s),context_vec))
             return gate_v
         def _step(i,mul_states,context_vec,gate_value):
             state_vec = multi_states.read(i)
@@ -202,9 +201,10 @@ class gated_evidence_fact_generation:
             i = tf.add(i,1)
             return i,multi_states,context_vec,gate_value
 
-        _,_,_,gate_value = tf.while_loop(lambda i,multi_states,context_vec,gate_value:i<evid_len[i],_step,[i,multi_states,context_vec,gate_value])
-        gate_value.stack()
+        _,_,_,gate_value = tf.while_loop(lambda i,multi_states,context_vec,gate_value:i<evid_len[i],_step,[i,multi_states,context_vec,gate_value],name='get_gate_value_loop')
+        gate_value = gate_value.stack()
         i = tf.argmax(gate_value)
+        i = tf.cast(i,tf.int32)
         sen_vec = multi_states.read(i)
         return sen_vec,i
     def context_vec_gen(self,states):
@@ -213,14 +213,14 @@ class gated_evidence_fact_generation:
 
         # encoder part
         # 将以tensor形式输入的原始数据转化成可变的TensorArray格式
-        evid_mat = tf.placeholder(dtype=tf.int32,shape=[self.MAX_EVIDS,self.MAX_EVID_LEN])
+        evid_mat_r = tf.placeholder(dtype=tf.int32,shape=[self.MAX_EVIDS,self.MAX_EVID_LEN])
         evid_len = tf.placeholder(dtype=tf.int32,shape=[self.MAX_EVIDS])
         evid_count = tf.placeholder(dtype=tf.int32)
         fact_mat = tf.placeholder(dtype=tf.int32,shape=[self.MAX_FACT_LEN])
         fact_len = tf.placeholder(dtype=tf.int32)
         #可以设置直接从已有的词向量读入
         embedding_t = tf.get_variable('embedding_table',shape=[self.MAX_VOCA_SZIE,self.VEC_SIZE])
-        evid_mat = tf.nn.embedding_lookup(embedding_t,evid_mat)
+        evid_mat = tf.nn.embedding_lookup(embedding_t,evid_mat_r)
         i = tf.constant(0)
 
         cells = self.get_cells()
@@ -236,9 +236,9 @@ class gated_evidence_fact_generation:
         state_ta = tf.TensorArray(dtype=tf.float32,size=evid_count)
         output_ta = tf.TensorArray(dtype=tf.float32,size=evid_count)
 
-        _,state_ta,output_ta = tf.while_loop(lambda i,state_ta,output_ta:i<evid_count,_encoder_evid,(i,state_ta,output_ta))
+        _,state_ta,output_ta = tf.while_loop(lambda i,state_ta,output_ta:i<evid_count,_encoder_evid,(i,state_ta,output_ta),name='get_lstm_encoder')
 
-        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT)
+        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT,state_is_tuple=False)
         run_state = decoder_cell.zero_state(self.BATCH_SIZE,tf.float32)
         output_seq = tf.TensorArray(dtype=tf.int32,size = fact_len)
         state_seq = tf.TensorArray(dtype=tf.float32,size = fact_len)
@@ -251,9 +251,12 @@ class gated_evidence_fact_generation:
                                   lambda:state_seq.read(tf.subtract(i,1)))
             #计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验
             choosed_state,index = self.gated_choose(state_ta,evid_len,evid_count,context_vec)
-            state,output = decoder_cell.call(output_ta[index],run_state)
+            output,state = decoder_cell.apply(output_ta.read(index),run_state)
             #生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
-            dis_v = map_out_w*output+map_out_b
+
+            output = tf.reshape(output,[-1,1])
+
+            dis_v = tf.matmul(map_out_w,output)+map_out_b
             dis_v = tf.nn.softmax(dis_v)
             char_most_pro = tf.argmax(dis_v)
             if mode == 'train':
@@ -264,12 +267,17 @@ class gated_evidence_fact_generation:
             #生成context向量
             i = tf.add(i,1)
             return i,state_seq,generated_seq,state,nll
-        _,state_seq,output_seq,_,nll = tf.while_loop(lambda i,sq,oq,s,nll:i<fact_len,_decoder_step,[i,state_seq,output_seq,run_state,nll])
+        _,state_seq,output_seq,run_state,nll = tf.while_loop(lambda i,*_:i<fact_len,_decoder_step,(i,state_seq,output_seq,run_state,nll),name='generate_word_loop')
+        nll = nll.stack()
         nll = tf.reduce_mean(nll)
+        state_seq =state_seq.stack()
+        output_seq = output_seq.stack()
         op = {
-            'evid_mat':evid_mat,
+            'evid_mat':evid_mat_r,
             'evid_len':evid_len,
             'evid_count':evid_count,
+            'fact_mat':fact_mat,
+            'fact_len':fact_len,
             'state_seq':state_seq,
             'output_seq':output_seq,
             'nll':nll
