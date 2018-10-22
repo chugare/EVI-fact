@@ -192,20 +192,38 @@ fact_len_sum = 0
 fact_len_max = 0
 fact_len_min = 99999
 count = 0
-
+evid_length_dis = [0 for i in range(101)]
+evid_count_dis = [0 for i in range(101)]
+fact_length_dis = [0 for i in range(101)]
 for set in read_file():
     evid_count_max = max([evid_count_max,len(set['evid'])])
     evid_count_min = min([evid_count_min,len(set['evid'])])
     evid_count += len(set['evid'])
     for e in set['evid']:
+        ind = (int)(len(e)/40)
+        if ind <100:
+            evid_length_dis[ind] += 1
+        else:
+            evid_length_dis[100] += 1
         evid_len_max = max([evid_len_max,len(e)])
         evid_len_min = min([evid_len_min,len(e)])
+
         evid_len_sum += len(e)
+    ind = (int)(len(set['fact'])/20)
+    if ind < 100:
+        fact_length_dis[ind] += 1
+    else:
+        fact_length_dis[100] +=1
+    ind = len(set['evid'])
+    if ind <100:
+        evid_count_dis[ind] += 1
+    else:
+        evid_count_dis[100] += 1
     fact_len_sum += len(set['fact'])
     fact_len_max  = max(len(set['fact']),fact_len_max)
     fact_len_min = min(fact_len_min,len(set['fact']))
     count += 1
-print("""
+main_report = """
 evid_count = %d
 evid_count_max = %d
 evid_count_min = %d
@@ -226,4 +244,19 @@ fact_len_sum/count ,
 fact_len_max ,
 fact_len_min ,
 count
-))
+)
+
+log_file = open('data_report.txt','w')
+# log_file.write(main_report)
+# log_file.write('\n')
+for c in evid_length_dis:
+    log_file.write('%d\t'%c)
+log_file.write('\n')
+
+for c in evid_count_dis:
+    log_file.write('%d\t'%c)
+log_file.write('\n')
+
+for c in fact_length_dis:
+    log_file.write('%d\t'%c)
+log_file.write('\n')
