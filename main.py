@@ -88,8 +88,9 @@ def train_GEFG():
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
     p = preprocess.Preprocessor()
-    m = model.gated_evidence_fact_generation()
-    ops = m.build_model('train')
+    with tf.device('/cpu:0'):
+        m = model.gated_evidence_fact_generation()
+        ops = m.build_model('train')
     meta = {
         'MEL':m.MAX_EVID_LEN,
         'MEC':m.MAX_EVIDS,
@@ -114,6 +115,12 @@ def train_GEFG():
                     batch_count = 0
                     while True:
                         evid_mat,evid_len,evid_count,fact_mat,fact_len = next(data_gen)
+                        print(evid_len)
+                        # oos,ss = sess.run([ops['os'],ops['ss']],feed_dict={ops['evid_mat']: evid_mat,
+                        #                                  ops['evid_len']: evid_len,
+                        #                                  ops['evid_count']: evid_count,
+                        #                                  ops['fact_mat']: fact_mat,
+                        #                                  ops['fact_len']: fact_len})
                         state_seq,output_seq,nll,_ = sess.run([ops['state_seq'],ops['output_seq'],ops['nll'],t_op],
                                               feed_dict={ops['evid_mat']: evid_mat,
                                                          ops['evid_len']: evid_len,
