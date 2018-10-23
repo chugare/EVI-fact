@@ -9,6 +9,7 @@ import os
 import re
 import jieba
 import math
+import json
 root_dic = '/Users/simengzhao/Desktop/项目/FactExtraction/2015'
 filter_choose = ['证人证言','被告人供述和辩解']
 
@@ -61,7 +62,7 @@ def extract_ZhengYan(root_dic):
                 if len(renzheng)>1:
                     log.write('<FACT%d>%s</FACT%d>\n' % (count, fact, count))
                     for rz in renzheng:
-                        log.write('<EVID%d>%s<EVID%d>\n' % (count, rz, count))
+                        log.write('<EVID%d>%s</EVID%d>\n' % (count, rz, count))
             except StopIteration:
                 pass
             count += 1
@@ -181,82 +182,122 @@ def share_word(f_e_set,fname):
             fact_seg_file.write('>  EVID : %f\t%f\t%s\n' % (score1, score2, evid))
 
 #calc_evid_type()
+def data_report():
+    evid_count = 0
+    evid_count_max = 0
+    evid_count_min = 999
+    evid_len_sum = 0
+    evid_len_max = 0
+    evid_len_min = 99999
+    fact_len_sum = 0
+    fact_len_max = 0
+    fact_len_min = 99999
+    count = 0
+    evid_length_dis = [0 for i in range(101)]
+    evid_count_dis = [0 for i in range(101)]
+    fact_length_dis = [0 for i in range(101)]
+    for set in read_json():
+        evid_count_max = max([evid_count_max,len(set['evid'])])
+        evid_count_min = min([evid_count_min,len(set['evid'])])
+        evid_count += len(set['evid'])
+        for e in set['evid']:
+            ind = (int)(len(e)/40)
+            if ind <100:
+                evid_length_dis[ind] += 1
+            else:
+                evid_length_dis[100] += 1
+            evid_len_max = max([evid_len_max,len(e)])
+            evid_len_min = min([evid_len_min,len(e)])
 
-evid_count = 0
-evid_count_max = 0
-evid_count_min = 999
-evid_len_sum = 0
-evid_len_max = 0
-evid_len_min = 99999
-fact_len_sum = 0
-fact_len_max = 0
-fact_len_min = 99999
-count = 0
-evid_length_dis = [0 for i in range(101)]
-evid_count_dis = [0 for i in range(101)]
-fact_length_dis = [0 for i in range(101)]
-for set in read_file():
-    evid_count_max = max([evid_count_max,len(set['evid'])])
-    evid_count_min = min([evid_count_min,len(set['evid'])])
-    evid_count += len(set['evid'])
-    for e in set['evid']:
-        ind = (int)(len(e)/40)
-        if ind <100:
-            evid_length_dis[ind] += 1
+            evid_len_sum += len(e)
+        ind = (int)(len(set['fact'])/20)
+        if ind < 100:
+            fact_length_dis[ind] += 1
         else:
-            evid_length_dis[100] += 1
-        evid_len_max = max([evid_len_max,len(e)])
-        evid_len_min = min([evid_len_min,len(e)])
+            fact_length_dis[100] +=1
+        ind = len(set['evid'])
+        if ind <100:
+            evid_count_dis[ind] += 1
+        else:
+            evid_count_dis[100] += 1
+        fact_len_sum += len(set['fact'])
+        fact_len_max  = max(len(set['fact']),fact_len_max)
+        fact_len_min = min(fact_len_min,len(set['fact']))
+        count += 1
+    main_report = """
+    evid_count = %d
+    evid_count_max = %d
+    evid_count_min = %d
+    evid_avg_len = %d
+    evid_len_max = %d
+    evid_len_min = %d
+    fact_avg_len = %d
+    fact_len_max = %d
+    fact_len_min = %d
+    count = %d"""%(
+    evid_count,
+    evid_count_max ,
+    evid_count_min ,
+    evid_len_sum/evid_count ,
+    evid_len_max ,
+    evid_len_min ,
+    fact_len_sum/count ,
+    fact_len_max ,
+    fact_len_min ,
+    count
+    )
 
-        evid_len_sum += len(e)
-    ind = (int)(len(set['fact'])/20)
-    if ind < 100:
-        fact_length_dis[ind] += 1
-    else:
-        fact_length_dis[100] +=1
-    ind = len(set['evid'])
-    if ind <100:
-        evid_count_dis[ind] += 1
-    else:
-        evid_count_dis[100] += 1
-    fact_len_sum += len(set['fact'])
-    fact_len_max  = max(len(set['fact']),fact_len_max)
-    fact_len_min = min(fact_len_min,len(set['fact']))
-    count += 1
-main_report = """
-evid_count = %d
-evid_count_max = %d
-evid_count_min = %d
-evid_avg_len = %d
-evid_len_max = %d
-evid_len_min = %d
-fact_avg_len = %d
-fact_len_max = %d
-fact_len_min = %d
-count = %d"""%(
-evid_count,
-evid_count_max ,
-evid_count_min ,
-evid_len_sum/evid_count ,
-evid_len_max ,
-evid_len_min ,
-fact_len_sum/count ,
-fact_len_max ,
-fact_len_min ,
-count
-)
+    log_file = open('data_report.txt','w')
+    # log_file.write(main_report)
+    # log_file.write('\n')
+    for c in evid_length_dis:
+        log_file.write('%d\t'%c)
+    log_file.write('\n')
 
-log_file = open('data_report.txt','w')
-# log_file.write(main_report)
-# log_file.write('\n')
-for c in evid_length_dis:
-    log_file.write('%d\t'%c)
-log_file.write('\n')
+    for c in evid_count_dis:
+        log_file.write('%d\t'%c)
+    log_file.write('\n')
 
-for c in evid_count_dis:
-    log_file.write('%d\t'%c)
-log_file.write('\n')
+    for c in fact_length_dis:
+        log_file.write('%d\t'%c)
+    log_file.write('\n')
 
-for c in fact_length_dis:
-    log_file.write('%d\t'%c)
-log_file.write('\n')
+def read_json():
+    source = open('data.json','r',encoding='utf-8')
+    dt = json.load(source)
+    for i in dt:
+        yield i
+def data_reformat():
+    max_len_evid = 800
+    max_len_fact = 600
+    max_count_evid = 50
+    res_file = open('data.json','w',encoding='utf-8')
+    dataset = []
+    for set in read_file():
+        if len(set['fact'])>max_len_fact:
+            continue
+        elif len(set['evid'])>max_count_evid:
+            continue
+        elif len(max(set['evid'],key = lambda x:len(x))) > max_len_evid:
+            continue
+        else:
+            dataset.append(set)
+            continue
+    json.dump(dataset,res_file, ensure_ascii=False, indent=2)
+
+
+
+
+            # count = 0
+        # new_evid = []
+        # for e in sorted_e:
+        #     if len(e)>800:
+        #         continue
+        #     else:
+        #         new_evid.append(e)
+        #         count+=1
+        # new_evid = sorted(new_evid,key=lambda x:len(x))
+        # if count>max_count_evid:
+        #     new_evid = new_evid[count-max_count_evid:]
+
+data_report()
