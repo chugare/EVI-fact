@@ -144,8 +144,8 @@ class gated_evidence_fact_generation:
         self.NUM_UNIT = 100
         self.BATCH_SIZE = 1
         self.MAX_EVIDS = 50
-        self.MAX_EVID_LEN = 5000
-        self.MAX_FACT_LEN = 3000
+        self.MAX_EVID_LEN = 800
+        self.MAX_FACT_LEN = 600
         self.MAX_VOCA_SZIE = 10000
         self.VEC_SIZE = 100
         self.DECODER_NUM_UNIT = 100
@@ -193,7 +193,6 @@ class gated_evidence_fact_generation:
         i = tf.constant(0)
         def _gate_calc(state_seq,context_vec):
             state_seq = tf.reshape(state_seq,shape=[state_seq.shape[1],state_seq.shape[2]])
-            print(context_vec)
             context_vec = tf.reshape(context_vec,[-1])
             gate_v = tf.reduce_mean((tf.matmul(state_seq,attention_var_s)*context_vec))
             return gate_v
@@ -260,7 +259,6 @@ class gated_evidence_fact_generation:
             #生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
 
             output = tf.reshape(output,[-1,1])
-            print(output)
             dis_v = tf.matmul(map_out_w,output)+map_out_b
             dis_v = tf.nn.softmax(dis_v)
             char_most_pro = tf.argmax(dis_v)

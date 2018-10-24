@@ -12,15 +12,15 @@
 import jieba
 import numpy as np
 import re
-
+import json
 
 class Preprocessor:
     def __init__(self):
         self.DIC = {}
         self.wordlist = {}
-        self.freq_threshold = 6
+        self.freq_threshold = 20
         self.read_dic()
-        self.ULSW = [' ', '，', '。', '\n', '\t']
+        self.ULSW = ['\n', '\t']
 
     def read_dic(self):
         try:
@@ -37,13 +37,22 @@ class Preprocessor:
         #   第一次建立字典的时候调用
         dic_count = {}
         try:
-            sf = open(source_file, 'r', encoding='utf-8')
-            for line in sf:
-                words = jieba.lcut(line)
+            data_gen = self.read_file(source_file)
+            for aj in data_gen:
+                words = jieba.lcut(aj['fact'])
+
                 for word in words:
                     if word not in dic_count:
                         dic_count[word] = 0
                     dic_count[word] += 1
+                evids = aj['evid']
+                for e in evids:
+                    words = jieba.lcut(e)
+                    for word in words:
+                        if word not in dic_count:
+                            dic_count[word] = 0
+                        dic_count[word] += 1
+
             self.DIC['<unk>'] = 0
             self.DIC['<eos>'] = 1
             self.DIC['<sos>'] = 2
@@ -84,27 +93,32 @@ class Preprocessor:
             res[c] = 1
         return res
 
-    def read_file(self, data_source):
-        rf = open(data_source, 'r', encoding='utf-8')
-        res = {'fact': '',
-               'evid': [], }
-        for line in rf:
-            fact_pattern = '<FACT(.*?)>(.*?)</FACT.*>'
-            evid_pattern = '<EVID(.*?)>(.*?)<EVID.*>'
-            f = re.findall(fact_pattern, line)
-            e = re.findall(evid_pattern, line)
-            if len(f) > 0:
-                if res['fact'] != '':
-                    yield res
-                res = {'fact': f[0][1],
-                       'evid': [], }
-
-            elif len(e) > 0:
-                res['evid'].append(e[0][1])
-            else:
-                pass
-
-        yield res
+    def read_file(self,data_source):
+        source = open('data.json', 'r', encoding='utf-8')
+        dt = json.load(source)
+        for i in dt:
+            yield i
+    # def read_file(self, data_source):
+    #     rf = open(data_source, 'r', encoding='utf-8')
+    #     res = {'fact': '',
+    #            'evid': [], }
+    #     for line in rf:
+    #         fact_pattern = '<FACT(.*?)>(.*?)</FACT.*>'
+    #         evid_pattern = '<EVID(.*?)>(.*?)<EVID.*>'
+    #         f = re.findall(fact_pattern, line)
+    #         e = re.findall(evid_pattern, line)
+    #         if len(f) > 0:
+    #             if res['fact'] != '':
+    #                 yield res
+    #             res = {'fact': f[0][1],
+    #                    'evid': [], }
+    #
+    #         elif len(e) > 0:
+    #             res['evid'].append(e[0][1])
+    #         else:
+    #             pass
+    #
+    #     yield res
 
     #   生成context的函数
     @staticmethod
@@ -272,4 +286,5 @@ class Preprocessor:
 def init():
     p = Preprocessor()
     p.init_dic('tmp.txt')
-# init()
+if __name__ == 'main':
+    init()
