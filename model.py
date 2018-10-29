@@ -257,14 +257,16 @@ class gated_evidence_fact_generation:
             choosed_state,index = self.gated_choose(output_ta,evid_len,evid_count,context_vec)
             output,state = decoder_cell.apply(state_ta.read(index),run_state)
             #生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
-
+            mat_mul = map_out_w*output
             output = tf.reshape(output,[-1,1])
-            dis_v = tf.matmul(map_out_w,output)+map_out_b
+
+            dis_v = tf.add(tf.reduce_sum(mat_mul,1),map_out_b)
+            print(dis_v)
             dis_v = tf.nn.softmax(dis_v)
             char_most_pro = tf.argmax(dis_v)
             char_most_pro = tf.cast(char_most_pro,tf.int32)
             if mode == 'train':
-                nll = nll.write(i,dis_v[fact_mat[i]])
+                nll = nll.write(i,-tf.log(dis_v[fact_mat[i]]))
             # 对每一个单词的分布取最大值
             _state_seq = _state_seq.write(i,state)
             generated_seq = generated_seq.write(i, char_most_pro)

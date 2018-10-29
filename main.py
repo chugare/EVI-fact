@@ -88,9 +88,10 @@ def train_GEFG():
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
     p = preprocess.Preprocessor()
-    with tf.device('/cpu:0'):
-        m = model.gated_evidence_fact_generation()
-        ops = m.build_model('train')
+    # with tf.device('/cpu:0'):
+    # with tf.device('/device:GPU:0'):
+    m = model.gated_evidence_fact_generation()
+    ops = m.build_model('train')
     meta = {
         'MEL':m.MAX_EVID_LEN,
         'MEC':m.MAX_EVIDS,
@@ -104,40 +105,49 @@ def train_GEFG():
         init = tf.global_variables_initializer()
         sess.run(init)
         checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
+        sess.graph.finalize()
         start_epoch = 0
         if checkpoint:
             saver.restore(sess, checkpoint)
             print('[INFO] 从上一次的检查点:\t%s开始继续训练任务' % checkpoint)
             start_epoch += int(checkpoint.split('-')[-1])
-        try:
-            for i in range(epoch):
-                try:
-                    batch_count = 0
-                    while True:
-                        evid_mat,evid_len,evid_count,fact_mat,fact_len = next(data_gen)
-                        print(evid_len)
-                        # oos,ss = sess.run([ops['os'],ops['ss']],feed_dict={ops['evid_mat']: evid_mat,
-                        #                                  ops['evid_len']: evid_len,
-                        #                                  ops['evid_count']: evid_count,
-                        #                                  ops['fact_mat']: fact_mat,
-                        #                                  ops['fact_len']: fact_len})
-                        state_seq,output_seq,nll,_ = sess.run([ops['state_seq'],ops['output_seq'],ops['nll'],t_op],
-                                              feed_dict={ops['evid_mat']: evid_mat,
-                                                         ops['evid_len']: evid_len,
-                                                         ops['evid_count']: evid_count,
-                                                         ops['fact_mat']: fact_mat,
-                                                         ops['fact_len']: fact_len}
-                                              )
 
-                        print('[INFO] Batch %d 训练结果：    nll-  %.6f  ' % (batch_count, nll))
-                        # print('[INFO] Batch %d'%batch_count)
+        for i in range(epoch):
+            try:
+                batch_count = 0
+                while True:
+                    evid_mat,evid_len,evid_count,fact_mat,fact_len = next(data_gen)
 
-                        batch_count += 1
-                except StopIteration:
-                    print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
-                    saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+                    # oos,ss = sess.run([ops['os'],ops['ss']],feed_dict={ops['evid_mat']: evid_mat,
+                    #                                  ops['evid_len']: evid_len,
+                    #                                  ops['evid_count']: evid_count,
+                    #                                  ops['fact_mat']: fact_mat,
+                    #                                  ops['fact_len']: fact_len})
+                    state_seq,output_seq,nll,_ = sess.run([ops['state_seq'],ops['output_seq'],ops['nll'],t_op],
+                                          feed_dict={ops['evid_mat']: evid_mat,
+                                                     ops['evid_len']: evid_len,
+                                                     ops['evid_count']: evid_count,
+                                                     ops['fact_mat']: fact_mat,
+                                                     ops['fact_len']: fact_len},
+                                          )
 
-        except KeyboardInterrupt:
-            saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+                    print('[INFO] Batch %d 训练结果：    NLL=%.6f  ' % (batch_count, nll))
+                    # print('[INFO] Batch %d'%batch_count)
+
+                    batch_count += 1
+            except StopIteration:
+                print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
+                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+            except Exception as e:
+                print(evid_mat)
+                print(evid_len)
+                print(evid_count)
+                print(fact_len)
+                print(fact_mat)
+                print("[INFO] 因为程序错误停止训练，开始保存模型")
+                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+            except KeyboardInterrupt:
+                print("[INFO] 强行停止训练，开始保存模型")
+                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
 
 train_GEFG()
