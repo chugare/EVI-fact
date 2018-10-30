@@ -9,6 +9,10 @@ import model
 import tensorflow as tf
 import os
 import time
+
+ERROR_LOG = open('error_log.txt','w',encoding='utf-8')
+
+
 def train_ABS():
     epoche = 50
     source_name = 'analyse_result.txt'
@@ -82,39 +86,50 @@ def valid_gen_ABS():
                 saver.save(sess, os.path.join(checkpoint_dir, 'ABS_summary'), global_step=i)
 
 def train_GEFG():
+    # 设置训练配置内容
     epoch = 50
     source_name = 'analyse_result.txt'
     checkpoint_dir = os.path.abspath('./checkpoint_GEFG')
-
+    summary_dir = os.path.abspath('./summary/GEFG/train')
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
     p = preprocess.Preprocessor()
+
+
+    # 模型搭建
     # with tf.device('/cpu:0'):
     # with tf.device('/device:GPU:0'):
     m = model.gated_evidence_fact_generation()
     ops = m.build_model('train')
+
+    # 配置数据生成器的元数据
     meta = {
         'MEL':m.MAX_EVID_LEN,
         'MEC':m.MAX_EVIDS,
         'MFL':m.MAX_FACT_LEN
     }
-    data_gen = p.data_format_train(source_name,1,format_type="GEFG",meta=meta)
     t_op = m.train_op(ops['nll'])
 
+    # 训练过程
     saver = tf.train.Saver()
     with tf.Session() as sess:
+        # 训练配置，包括参数初始化以及读取检查点
         init = tf.global_variables_initializer()
         sess.run(init)
         checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
         sess.graph.finalize()
+        train_writer = tf.summary.FileWriter(summary_dir,sess.graph)
         start_epoch = 0
         if checkpoint:
             saver.restore(sess, checkpoint)
             print('[INFO] 从上一次的检查点:\t%s开始继续训练任务' % checkpoint)
             start_epoch += int(checkpoint.split('-')[-1])
         start_time = time.time()
-        cur_time = time.time()
+
+        # 开始训练
+        global_step = 0
         for i in range(epoch):
+            data_gen = p.data_format_train(source_name, 1, format_type="GEFG", meta=meta)
             try:
                 batch_count = 0
                 while True:
@@ -127,28 +142,37 @@ def train_GEFG():
                     #                                  ops['fact_len']: fact_len})
 
                     last_time = time.time()
-                    state_seq,output_seq,nll,_ = sess.run([ops['state_seq'],ops['output_seq'],ops['nll'],t_op],
+                    state_seq,output_seq,nll,merge,_ = sess.run([ops['state_seq'],ops['output_seq'],ops['nll'],ops['merge'],t_op],
                                           feed_dict={ops['evid_mat']: evid_mat,
                                                      ops['evid_len']: evid_len,
                                                      ops['evid_count']: evid_count,
                                                      ops['fact_mat']: fact_mat,
                                                      ops['fact_len']: fact_len},
                                           )
+
                     cur_time =time.time()
                     time_cost = cur_time-last_time
                     total_cost = cur_time-start_time
+                    if global_step % 10 == 0:
+                        train_writer.add_summary(merge,global_step/10)
                     print('[INFO] Batch %d 训练结果：NLL=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, nll,time_cost,total_cost))
                     # print('[INFO] Batch %d'%batch_count)
                     # matplotlib 实现可视化loss
                     batch_count += 1
+                    global_step += 1
             except StopIteration:
                 print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
                 saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
-            # except Exception as e:
-            #     print("[INFO] 因为程序错误停止训练，开始保存模型")
-            #     saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+            except Exception as e:
+                print("[INFO] 因为程序错误停止训练，开始保存模型")
+                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
             except KeyboardInterrupt:
                 print("[INFO] 强行停止训练，开始保存模型")
                 saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+
+def valid_GEFG():
+    checkpoint_dir = os.path.abspath('./checkpoint_GEFG')
+    saver = tf.train.Saver()
+
 
 train_GEFG()
