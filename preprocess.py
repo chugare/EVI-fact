@@ -257,8 +257,9 @@ class Preprocessor:
                         evid_lens.append(0)
 
                 fact_vec = self.ohencoder(fact)
-                fact_vec = np.concatenate([fact_vec,np.zeros([mfl-len(fact_vec)])])
-                yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,len(fact_vec)
+                fact_len = len(fact_vec)
+                fact_vec = np.concatenate([fact_vec,np.zeros([mfl-len(fact_vec)],dtype=np.int32)])
+                yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,fact_len
 
         else:
             print("[ERROR] Declaration of format type is required")

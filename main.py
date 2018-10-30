@@ -8,6 +8,7 @@ import preprocess
 import model
 import tensorflow as tf
 import os
+import time
 def train_ABS():
     epoche = 50
     source_name = 'analyse_result.txt'
@@ -111,18 +112,21 @@ def train_GEFG():
             saver.restore(sess, checkpoint)
             print('[INFO] 从上一次的检查点:\t%s开始继续训练任务' % checkpoint)
             start_epoch += int(checkpoint.split('-')[-1])
-
+        start_time = time.time()
+        cur_time = time.time()
         for i in range(epoch):
             try:
                 batch_count = 0
                 while True:
                     evid_mat,evid_len,evid_count,fact_mat,fact_len = next(data_gen)
-
+                    print(fact_len)
                     # oos,ss = sess.run([ops['os'],ops['ss']],feed_dict={ops['evid_mat']: evid_mat,
                     #                                  ops['evid_len']: evid_len,
                     #                                  ops['evid_count']: evid_count,
                     #                                  ops['fact_mat']: fact_mat,
                     #                                  ops['fact_len']: fact_len})
+
+                    last_time = time.time()
                     state_seq,output_seq,nll,_ = sess.run([ops['state_seq'],ops['output_seq'],ops['nll'],t_op],
                                           feed_dict={ops['evid_mat']: evid_mat,
                                                      ops['evid_len']: evid_len,
@@ -130,22 +134,19 @@ def train_GEFG():
                                                      ops['fact_mat']: fact_mat,
                                                      ops['fact_len']: fact_len},
                                           )
-
-                    print('[INFO] Batch %d 训练结果：    NLL=%.6f  ' % (batch_count, nll))
+                    cur_time =time.time()
+                    time_cost = cur_time-last_time
+                    total_cost = cur_time-start_time
+                    print('[INFO] Batch %d 训练结果：NLL=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, nll,time_cost,total_cost))
                     # print('[INFO] Batch %d'%batch_count)
-
+                    # matplotlib 实现可视化loss
                     batch_count += 1
             except StopIteration:
                 print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
                 saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
-            except Exception as e:
-                print(evid_mat)
-                print(evid_len)
-                print(evid_count)
-                print(fact_len)
-                print(fact_mat)
-                print("[INFO] 因为程序错误停止训练，开始保存模型")
-                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+            # except Exception as e:
+            #     print("[INFO] 因为程序错误停止训练，开始保存模型")
+            #     saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
             except KeyboardInterrupt:
                 print("[INFO] 强行停止训练，开始保存模型")
                 saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)

@@ -228,14 +228,14 @@ class gated_evidence_fact_generation:
 
         cells = self.get_cells()
 
-        def _encoder_evid(i,state_ta,output_ta):
+        def _encoder_evid(i,_state_ta,_output_ta):
 
             output,state = gated_evidence_fact_generation.BiLSTMencoder(cells,evid_mat[i],evid_len[i])
-            state_ta = state_ta.write(i,state)
-            output_ta = output_ta.write(i,output)
+            _state_ta = _state_ta.write(i,state)
+            _output_ta = _output_ta.write(i,output)
 
             i = tf.add(i,1)
-            return i,state_ta,output_ta
+            return i,_state_ta,_output_ta
 
         state_ta = tf.TensorArray(dtype=tf.float32,size=evid_count,clear_after_read = False)
         output_ta = tf.TensorArray(dtype=tf.float32,size=evid_count,clear_after_read = False)
@@ -261,7 +261,7 @@ class gated_evidence_fact_generation:
             output = tf.reshape(output,[-1,1])
 
             dis_v = tf.add(tf.reduce_sum(mat_mul,1),map_out_b)
-            print(dis_v)
+
             dis_v = tf.nn.softmax(dis_v)
             char_most_pro = tf.argmax(dis_v)
             char_most_pro = tf.cast(char_most_pro,tf.int32)
