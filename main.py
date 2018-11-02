@@ -9,6 +9,9 @@ import model
 import tensorflow as tf
 import os
 import time
+import json
+
+
 
 ERROR_LOG = open('error_log.txt','w',encoding='utf-8')
 
@@ -88,7 +91,7 @@ def valid_gen_ABS():
 def train_GEFG():
     # 设置训练配置内容
     epoch = 50
-    source_name = 'analyse_result.txt'
+    source_name = 'train_data.json'
     checkpoint_dir = os.path.abspath('./checkpoint_GEFG')
     summary_dir = os.path.abspath('./summary/GEFG/train')
     if not os.path.exists(checkpoint_dir):
@@ -135,11 +138,6 @@ def train_GEFG():
                 while True:
                     evid_mat,evid_len,evid_count,fact_mat,fact_len = next(data_gen)
                     print(fact_len)
-                    # oos,ss = sess.run([ops['os'],ops['ss']],feed_dict={ops['evid_mat']: evid_mat,
-                    #                                  ops['evid_len']: evid_len,
-                    #                                  ops['evid_count']: evid_count,
-                    #                                  ops['fact_mat']: fact_mat,
-                    #                                  ops['fact_len']: fact_len})
 
                     last_time = time.time()
                     state_seq,output_seq,nll,merge,_ = sess.run([ops['state_seq'],ops['output_seq'],ops['nll'],ops['merge'],t_op],
@@ -171,8 +169,82 @@ def train_GEFG():
                 saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
 
 def valid_GEFG():
+
+    source_name = 'test_data.json'
+    checkpoint_dir = os.path.abspath('./checkpoint_GEFG')
+    summary_dir = os.path.abspath('./summary/GEFG/test')
+    if not os.path.exists(checkpoint_dir):
+        os.mkdir(checkpoint_dir)
+    p = preprocess.Preprocessor()
+
+    模型搭建
+    # with tf.device('/cpu:0'):
+    # with tf.device('/device:GPU:0'):
+    m = model.gated_evidence_fact_generation()
+    ops = m.build_model('test')
+
+    # 配置数据生成器的元数据
+    meta = {
+        'MEL': m.MAX_EVID_LEN,
+        'MEC': m.MAX_EVIDS,
+        'MFL': m.MAX_FACT_LEN
+    }
+
+
     checkpoint_dir = os.path.abspath('./checkpoint_GEFG')
     saver = tf.train.Saver()
 
+    with tf.Session() as sess:
+        # 训练配置，包括参数初始化以及读取检查点
+        # init = tf.global_variables_initializer()
+        # sess.run(init)
+        checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
+        sess.graph.finalize()
+        train_writer = tf.summary.FileWriter(summary_dir,sess.graph)
+        start_epoch = 0
+        if checkpoint:
+            saver.restore(sess, checkpoint)
+            print('[INFO] 从训练的检查点 %s 载入模型进行验证' % checkpoint)
+            start_epoch += int(checkpoint.split('-')[-1])
+        else:
+            print('[ERROR] 不存在已经训练完成的模型，无法进行验证')
+        start_time = time.time()
+        global_step = 0
+
+        report_data = []
+        data_gen = p.data_format_train(source_name, 1, format_type="GEFG", meta=meta)
+        try:
+
+            while True:
+                evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
+                print(fact_len)
+
+                last_time = time.time()
+                state_seq, output_seq= sess.run(
+                    [ops['state_seq'], ops['output_seq']],
+                    feed_dict={ops['evid_mat']: evid_mat,
+                               ops['evid_len']: evid_len,
+                               ops['evid_count']: evid_count,
+                               ops['fact_mat']: fact_mat,
+                               ops['fact_len']: fact_len},
+                    )
+
+                cur_time = time.time()
+                time_cost = cur_time - last_time
+                total_cost = cur_time - start_time
+                if global_step % 10 == 0:
+                    train_writer.add_summary(merge, global_step / 10)
+                print(
+                    '[INFO] 验证进行到第 %d 个文书，用时%.2f，总计用时%.2f' % (batch_count, time_cost, total_cost))
+                # print('[INFO] Batch %d'%batch_count)
+                # matplotlib 实现可视化loss
+                t_fact = p.get_sentence(fact_mat)
+                m_fact = p.get_sentence(output_seq)
+
+
+                global_step += 1
+        except StopIteration:
+
+            print('[INFO] Validation Finished, Report has been written in file %s',)
 
 train_GEFG()

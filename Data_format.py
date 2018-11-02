@@ -33,8 +33,8 @@ def read_file():
 
     yield res
 
-def read_json():
-    source = open('data.json','r',encoding='utf-8')
+def read_json(name):
+    source = open(name,'r',encoding='utf-8')
     dt = json.load(source)
     for i in dt:
         yield i
@@ -226,14 +226,14 @@ def data_reformat():
             continue
     json.dump(dataset,res_file, ensure_ascii=False, indent=2)
 
-def Train_Test_data_set():
+def seperate_data_set():
+    source = open('data.json', 'r', encoding='utf-8')
+    dt = json.load(source)
+    random.shuffle(dt)
+    train_file = open('train_data.json', 'w', encoding='utf-8')
+    test_file = open('test_data.json', 'w', encoding='utf-8')
+    json.dump(dt[:400],test_file,ensure_ascii=False, indent=2)
+    json.dump(dt[400:],train_file,ensure_ascii=False, indent=2)
 
-    jsons = read_json()
-    tc = 0
-    for data in jsons:
-        r = random.randint(0,4000)
-        if r<200:
-            print(r)
-        tc+=1
 
-Train_Test_data_set()
+seperate_data_set()

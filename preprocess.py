@@ -16,9 +16,13 @@ import json
 
 class Preprocessor:
     def __init__(self):
+
         self.DIC = {}
+
         self.wordlist = {}
+
         self.freq_threshold = 20
+
         self.read_dic()
         self.ULSW = ['\n', '\t']
 
@@ -71,8 +75,16 @@ class Preprocessor:
         for i in self.DIC:
             dic_file.write('%s %d\n' % (i, self.DIC[i]))
 
-    def get_word(self, index):
-        return self.wordlist[index]
+    def get_sentence(self, index_arr):
+        res = []
+        for i in range(index_arr):
+            if index_arr[i] != 1:
+               res.append(self.wordlist[index_arr[i]])
+            else:
+                break
+
+        return res
+
 
     def ohencoder(self, ec_str):
         words = jieba.lcut(ec_str)
@@ -94,7 +106,7 @@ class Preprocessor:
         return res
 
     def read_file(self,data_source):
-        source = open('data.json', 'r', encoding='utf-8')
+        source = open(data_source, 'r', encoding='utf-8')
         dt = json.load(source)
         for i in dt:
             yield i
