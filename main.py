@@ -11,6 +11,19 @@ import os
 import time
 import json
 
+import datetime
+class log_train:
+    def __init__(self, name, t=None):
+        if not os.path.exists(name):
+            os.mkdir(name)
+        if t == None:
+            t = datetime.datetime.now().strftime("%Y%m%d_%H-%M-%S")
+        name = "./%s/%s_"%(name,name)+t
+
+        self.log_file = open(name,'w',encoding='utf-8')
+    def write_log(self,data_list):
+        data_list = [str(i) for i in data_list]
+        self.log_file.write('\t'.join(data_list)+'\n')
 
 
 ERROR_LOG = open('error_log.txt','w',encoding='utf-8')
@@ -97,6 +110,7 @@ def train_GEFG():
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
     p = preprocess.Preprocessor()
+    logger = log_train('GEFG')
 
 
     # 模型搭建
@@ -116,7 +130,7 @@ def train_GEFG():
     # 训练过程
     saver = tf.train.Saver()
     config = tf.ConfigProto(
-        log_device_placement=True
+        # log_device_placement=True
     )
     with tf.Session(config=config) as sess:
         # 训练配置，包括参数初始化以及读取检查点
@@ -139,35 +153,40 @@ def train_GEFG():
             try:
                 batch_count = 0
                 while True:
-                    evid_mat,evid_len,evid_count,fact_mat,fact_len = next(data_gen)
-                    print(fact_len)
+                    try:
+                        evid_mat,evid_len,evid_count,fact_mat,fact_len = next(data_gen)
+                        print(fact_len)
+                        last_time = time.time()
+                        state_seq,output_seq,nll,merge,_ = sess.run([ops['state_seq'],ops['output_seq'],ops['nll'],ops['merge'],t_op],
+                                              feed_dict={ops['evid_mat']: evid_mat,
+                                                         ops['evid_len']: evid_len,
+                                                         ops['evid_count']: evid_count,
+                                                         ops['fact_mat']: fact_mat,
+                                                         ops['fact_len']: fact_len},
+                                              )
 
-                    last_time = time.time()
-                    state_seq,output_seq,nll,merge,_ = sess.run([ops['state_seq'],ops['output_seq'],ops['nll'],ops['merge'],t_op],
-                                          feed_dict={ops['evid_mat']: evid_mat,
-                                                     ops['evid_len']: evid_len,
-                                                     ops['evid_count']: evid_count,
-                                                     ops['fact_mat']: fact_mat,
-                                                     ops['fact_len']: fact_len},
-                                          )
+                        cur_time =time.time()
+                        time_cost = cur_time-last_time
+                        total_cost = cur_time-start_time
 
-                    cur_time =time.time()
-                    time_cost = cur_time-last_time
-                    total_cost = cur_time-start_time
+                        if global_step % 10 == 0:
+                            train_writer.add_summary(merge,global_step/10)
+                            logger.write_log([global_step/10,nll,total_cost])
+                        print('[INFO] Batch %d 训练结果：NLL=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, nll,time_cost,total_cost))
 
-                    if global_step % 10 == 0:
-                        train_writer.add_summary(merge,global_step/10)
-                    print('[INFO] Batch %d 训练结果：NLL=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, nll,time_cost,total_cost))
-                    # print('[INFO] Batch %d'%batch_count)
-                    # matplotlib 实现可视化loss
-                    batch_count += 1
-                    global_step += 1
-            except StopIteration:
-                print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
-                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
-            except Exception as e:
-                print("[INFO] 因为程序错误停止训练，开始保存模型")
-                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+                        # print('[INFO] Batch %d'%batch_count)
+                        # matplotlib 实现可视化loss
+                        batch_count += 1
+                        global_step += 1
+                    except StopIteration:
+                        print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
+                        saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+                    except Exception as e:
+                        l = p.get_sentence(fact_mat)
+
+                        ERROR_LOG.write(''.join(l)+'\n')
+                        print("[INFO] 因为程序错误停止训练，开始保存模型")
+                        saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
             except KeyboardInterrupt:
                 print("[INFO] 强行停止训练，开始保存模型")
                 saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
