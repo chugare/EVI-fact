@@ -115,7 +115,10 @@ def train_GEFG():
 
     # 训练过程
     saver = tf.train.Saver()
-    with tf.Session() as sess:
+    config = tf.ConfigProto(
+        log_device_placement=True
+    )
+    with tf.Session(config=config) as sess:
         # 训练配置，包括参数初始化以及读取检查点
         init = tf.global_variables_initializer()
         sess.run(init)
@@ -151,6 +154,7 @@ def train_GEFG():
                     cur_time =time.time()
                     time_cost = cur_time-last_time
                     total_cost = cur_time-start_time
+
                     if global_step % 10 == 0:
                         train_writer.add_summary(merge,global_step/10)
                     print('[INFO] Batch %d 训练结果：NLL=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, nll,time_cost,total_cost))
@@ -177,7 +181,7 @@ def valid_GEFG():
         os.mkdir(checkpoint_dir)
     p = preprocess.Preprocessor()
 
-    模型搭建
+    # 模型搭建
     # with tf.device('/cpu:0'):
     # with tf.device('/device:GPU:0'):
     m = model.gated_evidence_fact_generation()
@@ -232,8 +236,6 @@ def valid_GEFG():
                 cur_time = time.time()
                 time_cost = cur_time - last_time
                 total_cost = cur_time - start_time
-                if global_step % 10 == 0:
-                    train_writer.add_summary(merge, global_step / 10)
                 print(
                     '[INFO] 验证进行到第 %d 个文书，用时%.2f，总计用时%.2f' % (batch_count, time_cost, total_cost))
                 # print('[INFO] Batch %d'%batch_count)

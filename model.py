@@ -255,7 +255,7 @@ class gated_evidence_fact_generation:
         _, state_ta, output_ta = tf.while_loop(lambda i, state_ta, output_ta: i < evid_count, _encoder_evid,
                                                (i, state_ta, output_ta), name='get_lstm_encoder')
 
-        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT, state_is_tuple=False)
+        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT, state_is_tuple=True)
         run_state = decoder_cell.zero_state(self.BATCH_SIZE, tf.float32)
         output_seq = tf.TensorArray(dtype=tf.int32, size=fact_len, clear_after_read=False)
         state_seq = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False)
@@ -276,7 +276,7 @@ class gated_evidence_fact_generation:
             output, state = decoder_cell.apply(state_ta.read(index), run_state)
             # 生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
             mat_mul = map_out_w * output
-            _gate_value = _gate_value.write(index)
+            _gate_value = _gate_value.write(i,index)
             dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
 
             dis_v = tf.nn.softmax(dis_v)
