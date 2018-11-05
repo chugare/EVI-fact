@@ -301,6 +301,10 @@ class gated_evidence_fact_generation:
         merge = tf.summary.merge_all()
         state_seq = state_seq.stack()
         output_seq = output_seq.stack()
+
+        adam = tf.train.AdamOptimizer(self.LR)
+        t_op = adam.minimize(nll)
+
         op = {
             'evid_mat': evid_mat_r,
             'evid_len': evid_len,
@@ -311,12 +315,22 @@ class gated_evidence_fact_generation:
             'output_seq': output_seq,
             'nll': nll,
             'merge': merge,
-            'gate_value':gate_value
+            'gate_value':gate_value,
+            'train_op':t_op
 
         }
 
         return op
 
-    def train_op(self, nll):
-        adam = tf.train.AdamOptimizer(self.LR)
-        return adam.minimize(nll)
+    @staticmethod
+    def train_fun(sess,data_gen,ops):
+        evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
+        state_seq, output_seq, nll, merge, _ = sess.run(
+            [ops['state_seq'], ops['output_seq'], ops['nll'], ops['merge'], t_op],
+            feed_dict={ops['evid_mat']: evid_mat,
+                       ops['evid_len']: evid_len,
+                       ops['evid_count']: evid_count,
+                       ops['fact_mat']: fact_mat,
+                       ops['fact_len']: fact_len},
+            )
+        return nll,merge
