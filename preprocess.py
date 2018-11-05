@@ -24,14 +24,14 @@ class Preprocessor:
         self.freq_threshold = 20
 
         self.read_dic()
-        self.ULSW = ['\n', '\t']
+        self.ULSW = ['\n', '\t',' ']
 
     def read_dic(self):
         try:
             dic_file = open('_dic.txt', 'r', encoding='utf-8')
             for line in dic_file:
                 word = line.split(' ')[0]
-                index = line.split(' ')[1]
+                index = int(line.split(' ')[1].strip())
                 self.DIC[word] = index
                 self.wordlist[index] = word
         except FileNotFoundError:
@@ -77,7 +77,7 @@ class Preprocessor:
 
     def get_sentence(self, index_arr):
         res = []
-        for i in range(index_arr):
+        for i in range(len(index_arr)):
             if index_arr[i] != 1:
                res.append(self.wordlist[index_arr[i]])
             else:

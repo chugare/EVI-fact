@@ -11,7 +11,7 @@ class Model:
     def __init__(self, config=None):
         self.NUM_UNIT = 100
         self.H = 200  # 输入词向量维度大小
-        self.V = 40000  # 词汇量
+        self.V = 10000  # 词汇量
         self.D = 200  # 输出词向量维度大小
         self.C = 10  # 输出感受范围
         self.DC_LAYER = 2

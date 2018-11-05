@@ -31,7 +31,7 @@ ERROR_LOG = open('error_log.txt','w',encoding='utf-8')
 
 def train_ABS():
     epoche = 50
-    source_name = 'analyse_result.txt'
+    source_name = 'train_data.json'
     checkpoint_dir = os.path.abspath('./checkpoint_ABS')
 
     if not os.path.exists(checkpoint_dir):
@@ -181,12 +181,17 @@ def train_GEFG():
                     except StopIteration:
                         print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
                         saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+                        break
                     except Exception as e:
-                        l = p.get_sentence(fact_mat)
-
-                        ERROR_LOG.write(''.join(l)+'\n')
+                        for i in fact_mat:
+                            ERROR_LOG.write(str(i)+' ')
+                        ERROR_LOG.write('\n')
                         print("[INFO] 因为程序错误停止训练，开始保存模型")
                         saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+            except StopIteration:
+                print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
+                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+
             except KeyboardInterrupt:
                 print("[INFO] 强行停止训练，开始保存模型")
                 saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
@@ -256,10 +261,10 @@ def valid_GEFG():
                 time_cost = cur_time - last_time
                 total_cost = cur_time - start_time
                 print(
-                    '[INFO] 验证进行到第 %d 个文书，用时%.2f，总计用时%.2f' % (batch_count, time_cost, total_cost))
+                    '[INFO] 验证进行到第 %d 个文书，用时%.2f，总计用时%.2f' % (global_step, time_cost, total_cost))
                 # print('[INFO] Batch %d'%batch_count)
                 # matplotlib 实现可视化loss
-                t_fact = p.get_sentence(fact_mat)
+                t_fact = p.get_sentence(list(fact_mat))
                 m_fact = p.get_sentence(output_seq)
 
 
@@ -267,5 +272,6 @@ def valid_GEFG():
         except StopIteration:
 
             print('[INFO] Validation Finished, Report has been written in file %s',)
-
-train_GEFG()
+train_ABS()
+# valid_GEFG()
+# train_GEFG()
