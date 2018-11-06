@@ -15,71 +15,80 @@ import re
 import json
 
 class Preprocessor:
-    def __init__(self):
-
-        self.DIC = {}
-
-        self.wordlist = {}
-
-        self.freq_threshold = 20
-
+    def __init__(self,SEG_BY_WORD = True):
+        self.SEG_BY_WORD = SEG_BY_WORD
+        self.GRAM2N = {}
+        self.N2GRAM = {}
+        self.freq_threshold = 0
         self.read_dic()
-        self.ULSW = ['\n', '\t',' ']
+        self.ULSW = ['\n', '\t',' ','\n']
 
     def read_dic(self):
         try:
-            dic_file = open('_dic.txt', 'r', encoding='utf-8')
+            if self.SEG_BY_WORD:
+                dic_file = open('_WORD_DIC.txt', 'r', encoding='utf-8')
+            else:
+                dic_file = open('_CHAR_DIC.txt', 'r', encoding='utf-8')
             for line in dic_file:
                 word = line.split(' ')[0]
                 index = int(line.split(' ')[1].strip())
-                self.DIC[word] = index
-                self.wordlist[index] = word
+                self.GRAM2N[word] = index
+                self.N2GRAM[index] = word
         except FileNotFoundError:
-            pass
+            print('[INFO] 未发现对应的*_DIC.txt文件，需要先初始化，初始化完毕之后重新运行程序即可')
+
 
     def init_dic(self, source_file):
         #   第一次建立字典的时候调用
         dic_count = {}
         try:
             data_gen = self.read_file(source_file)
+            
             for aj in data_gen:
-                words = jieba.lcut(aj['fact'])
-
-                for word in words:
-                    if word not in dic_count:
-                        dic_count[word] = 0
-                    dic_count[word] += 1
+                if self.SEG_BY_WORD:
+                    grams = jieba.lcut(aj['fact'])
+                else:
+                    grams = aj['fact'].strip()
+                for gram in grams:
+                    if gram not in dic_count:
+                        dic_count[gram] = 0
+                    dic_count[gram] += 1
                 evids = aj['evid']
                 for e in evids:
-                    words = jieba.lcut(e)
-                    for word in words:
-                        if word not in dic_count:
-                            dic_count[word] = 0
-                        dic_count[word] += 1
+                    if self.SEG_BY_WORD:
+                        grams = jieba.lcut(e)
+                    else:
+                        grams = e.strip()
+                    for gram in grams:
+                        if gram not in dic_count:
+                            dic_count[gram] = 0
+                        dic_count[gram] += 1
 
-            self.DIC['<unk>'] = 0
-            self.DIC['<eos>'] = 1
-            self.DIC['<sos>'] = 2
-
+            self.GRAM2N['<unk>'] = 0
+            self.GRAM2N['<eos>'] = 1
+            self.GRAM2N['<sos>'] = 2
             index = 3
             for word in dic_count:
                 if dic_count[word] >= self.freq_threshold:
                     if word not in self.ULSW:
-                        self.DIC[word] = index
+                        self.GRAM2N[word] = index
                     index += 1
             print('[INFO] Dictionary built successfully')
         except FileNotFoundError:
             print("[ERROR] Source file \'%s\' not found" % (source_file))
-        dic_file = open('_dic.txt', 'w', encoding='utf-8')
-
-        for i in self.DIC:
-            dic_file.write('%s %d\n' % (i, self.DIC[i]))
+        
+        if self.SEG_BY_WORD:
+            dic_file = open('_WORD_DIC.txt', 'w', encoding='utf-8')
+        else:
+            dic_file = open('_CHAR_DIC.txt', 'w', encoding='utf-8')
+        for i in self.GRAM2N:
+            dic_file.write('%s %d\n' % (i, self.GRAM2N[i]))
 
     def get_sentence(self, index_arr):
         res = []
         for i in range(len(index_arr)):
             if index_arr[i] != 1:
-               res.append(self.wordlist[index_arr[i]])
+               res.append(self.N2GRAM[index_arr[i]])
             else:
                 break
 
@@ -87,12 +96,15 @@ class Preprocessor:
 
 
     def ohencoder(self, ec_str):
-        words = jieba.lcut(ec_str)
+        if self.SEG_BY_WORD:
+            grams = jieba.lcut(ec_str)
+        else:
+            grams = ec_str
         ec_vecs = [2]
 
-        for word in words:
-            if word in self.DIC:
-                ec_vecs.append(self.DIC[word])
+        for gram in grams:
+            if gram in self.GRAM2N:
+                ec_vecs.append(self.GRAM2N[gram])
             else:
                 # 当词典中没有对应的词时，简单的把单词变成unk符号，抑或是进行进一步的分词？
                 ec_vecs.append(0)
@@ -140,13 +152,13 @@ class Preprocessor:
             res[C - i - 1] = title[pos - i - 1]
         return res
 
-    def data_format_train(self, data_source, batch_size, format_type, meta):
+    def data_format_train(self,data_source,meta):
 
         #   输入的数据是原始的文本形式，在这个函数中进行查找，oh化并按batch划分
         #   由于是训练用的数据，所以会分批处理，输入的参数包括批次，context长度等信息
         #   结果输入由一个batchsize的list组成，每一个单元包括原始的bow编码，输出文本的上下文信息，以及下一个输出文本标签
         res_gen = self.read_file(data_source)
-
+        format_type = meta['NAME']
         #   从文本源中得到基本格式的数据，类型为
         #     {
         #         evids:['',''],
@@ -159,6 +171,7 @@ class Preprocessor:
             try:
                 V = meta['V']
                 C = meta['C']
+                batch_size = meta['BATCH_SIZE']
             except KeyError:
                 print('[ERROR] The meta data expected for data preparation required more info (require: C,V )')
             art_vecs = []
@@ -298,6 +311,7 @@ class Preprocessor:
                 yield art_vec,title_vec
 def init():
     p = Preprocessor()
-    p.init_dic('tmp.txt')
-if __name__ == 'main':
+    p.init_dic('data.json')
+if __name__ == '__main__':
+    print('[INFO] 初始化字典/词典')
     init()

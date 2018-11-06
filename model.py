@@ -7,13 +7,17 @@
 import tensorflow as tf
 
 class Base_model:
-
-    def build_model(self):
+    def set_meta(self,meta):
+    # 调整模型的各个超参数
+        pass
+    def build_model(self,mode):
+    # 建立模型，返回所有的操作组成的字典
         pass
     @staticmethod
     def train_fun(sess,data_gen,ops):
+    # 训练函数，用于训练框架中调用
         pass
-class ABS_model:
+class ABS_model(Base_model):
     def __init__(self, config=None):
         self.NUM_UNIT = 100
         self.H = 200  # 输入词向量维度大小
@@ -28,7 +32,9 @@ class ABS_model:
     # 在ABS的论文之中，介绍了三种编码器，分别是词袋模型的编码器，CNN的编码器，以及Attention based的编码器
     #
     # 由于磁带模型的编码器没有任何的序列信息，所以改进的时候在AttentionBased的情况中添加了上下文的关系
-
+    def set_meta(self,meta):
+        for k in meta:
+            self.__dict__[k] = meta[k]
     def embedding_x(self, x):
         F = tf.get_variable(name='embedding_F', shape=[self.V, self.H],
                             initializer=tf.truncated_normal_initializer(stddev=0.2))
@@ -89,7 +95,7 @@ class ABS_model:
         nll = tf.gather_nd(gx, y_t)
         return nll
 
-    def build_model(self):
+    def build_model(self,mode):
         #   不同的encoder由于输出向量的维度不同，W向量的大小也不同，基础的方式是使用abs的encoder
         input_x = tf.placeholder(
             dtype=tf.int32, shape=[self.BATCH_SIZE, self.V]
@@ -100,14 +106,18 @@ class ABS_model:
         gx = tf.nn.softmax(gx)
         nll = self.calc_nll(gx, input_y)
         nll_v = -tf.reduce_mean(tf.log(nll))
+        tf.summary.histogram("NLL",nll_v)
         train_op = tf.train.AdamOptimizer(self.LR).minimize(nll_v)
+        merge = tf.summary.merge_all()
         ops = {
             'in_x': input_x,
             'in_y': input_y,
             'cont_y': y_context,
             'train_op': train_op,
             'nll': nll_v,
-            'gx': gx
+            'gx': gx,
+            'merge':merge
+
         }
         return ops
 
@@ -131,11 +141,15 @@ class ABS_model:
     @staticmethod
     def train_fun(sess,data_gen,ops):
         in_x, yc, y = next(data_gen)
-        _, nll, gx = sess.run([ops['train_op'], ops['nll'], ops['gx']],
+        _, nll, gx ,merge= sess.run([ops['train_op'], ops['nll'], ops['gx'],ops['merge']],
                               feed_dict={ops['in_x']: in_x, ops['in_y']: y, ops['cont_y']: yc})
-        return
+        res = {
+            'loss':nll,
+            'merge':merge
+        }
+        return res
 
-class gated_evidence_fact_generation:
+class gated_evidence_fact_generation(Base_model):
     # 利用证据文本生成事实文本的模型，使用门控机制控制各个证据对于生成的作用，使用递归神经网络对每一个证据文本进行编码
 
     def __init__(self):
@@ -272,11 +286,16 @@ class gated_evidence_fact_generation:
             _gate_value = _gate_value.write(i,index)
             dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
 
-            dis_v = tf.nn.softmax(dis_v)
             char_most_pro = tf.argmax(dis_v)
             char_most_pro = tf.cast(char_most_pro, tf.int32)
             if mode == 'train':
-                nll = nll.write(i, -tf.log(dis_v[fact_mat[i]]))
+            # 11/06 更改损失函数变为交叉熵
+                true_l = tf.zeros([self.MAX_VOCA_SZIE],tf.int32)
+                true_l[fact_mat[i]] = 1
+                loss = tf.nn.softmax_cross_entropy_with_logits(dis_v,true_l,name='Cross_entropy')
+                nll.write(i,loss)
+                # dis_v = tf.nn.softmax(dis_v)
+                # nll = nll.write(i, -tf.log(dis_v[fact_mat[i]]))
             # 对每一个单词的分布取最大值
             _state_seq = _state_seq.write(i, state)
             generated_seq = generated_seq.write(i, char_most_pro)
@@ -326,4 +345,8 @@ class gated_evidence_fact_generation:
                        ops['fact_mat']: fact_mat,
                        ops['fact_len']: fact_len},
             )
-        return nll,merge
+
+        return {
+            'loss':nll,
+            'merge':merge
+        }

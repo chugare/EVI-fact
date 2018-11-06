@@ -5,6 +5,7 @@
 #   南京大学软件学院 Nanjing University Software Institute
 #
 from rouge import  Rouge
-def GEFG_eval(standard_sen,generated_sen):
+def ROUGE_eval(standard_sen,generated_sen):
     r = Rouge()
-    r.get_scores(generated_sen,standard_sen)
+    res = r.get_scores(generated_sen,standard_sen)
+    return res

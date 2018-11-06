@@ -235,5 +235,6 @@ def seperate_data_set():
     json.dump(dt[:400],test_file,ensure_ascii=False, indent=2)
     json.dump(dt[400:],train_file,ensure_ascii=False, indent=2)
 
+if __name__ == '__main__':
 
-seperate_data_set()
+    seperate_data_set()
