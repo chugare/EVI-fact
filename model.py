@@ -6,8 +6,14 @@
 #
 import tensorflow as tf
 
+class Base_model:
 
-class Model:
+    def build_model(self):
+        pass
+    @staticmethod
+    def train_fun(sess,data_gen,ops):
+        pass
+class ABS_model:
     def __init__(self, config=None):
         self.NUM_UNIT = 100
         self.H = 200  # 输入词向量维度大小
@@ -83,7 +89,7 @@ class Model:
         nll = tf.gather_nd(gx, y_t)
         return nll
 
-    def train(self):
+    def build_model(self):
         #   不同的encoder由于输出向量的维度不同，W向量的大小也不同，基础的方式是使用abs的encoder
         input_x = tf.placeholder(
             dtype=tf.int32, shape=[self.BATCH_SIZE, self.V]
@@ -91,13 +97,9 @@ class Model:
         input_y = tf.placeholder(dtype=tf.int32, shape=[self.BATCH_SIZE])
         y_context = tf.placeholder(tf.int32, shape=[self.BATCH_SIZE, self.C])
         gx = self.nnlm_build(input_x, y_context)
-
         gx = tf.nn.softmax(gx)
-
         nll = self.calc_nll(gx, input_y)
-
         nll_v = -tf.reduce_mean(tf.log(nll))
-
         train_op = tf.train.AdamOptimizer(self.LR).minimize(nll_v)
         ops = {
             'in_x': input_x,
@@ -106,7 +108,6 @@ class Model:
             'train_op': train_op,
             'nll': nll_v,
             'gx': gx
-
         }
         return ops
 
@@ -127,20 +128,12 @@ class Model:
             'nll': nll
         }
         return ops
-
-    def decoder(self, encoder_states, last_state, yi_1):
-        ops = {}
-        cells = []
-        for i in range(self.DC_LAYER):
-            dc_cell = tf.nn.rnn_cell.BasicLSTMCell
-            cells.append(dc_cell)
-        m_cell = tf.nn.rnn_cell.MultiRNNCell(cells)
-        init_state = m_cell.zero_state(self.BATCH_SIZE)
-        m_cell.call(inputs=input)
-        ops['decoder_state'] = init_state
-
-        return ops
-
+    @staticmethod
+    def train_fun(sess,data_gen,ops):
+        in_x, yc, y = next(data_gen)
+        _, nll, gx = sess.run([ops['train_op'], ops['nll'], ops['gx']],
+                              feed_dict={ops['in_x']: in_x, ops['in_y']: y, ops['cont_y']: yc})
+        return
 
 class gated_evidence_fact_generation:
     # 利用证据文本生成事实文本的模型，使用门控机制控制各个证据对于生成的作用，使用递归神经网络对每一个证据文本进行编码
@@ -326,7 +319,7 @@ class gated_evidence_fact_generation:
     def train_fun(sess,data_gen,ops):
         evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
         state_seq, output_seq, nll, merge, _ = sess.run(
-            [ops['state_seq'], ops['output_seq'], ops['nll'], ops['merge'], t_op],
+            [ops['state_seq'], ops['output_seq'], ops['nll'], ops['merge'], ops['train_op']],
             feed_dict={ops['evid_mat']: evid_mat,
                        ops['evid_len']: evid_len,
                        ops['evid_count']: evid_count,

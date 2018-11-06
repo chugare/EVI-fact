@@ -28,31 +28,23 @@ class log_train:
 
 ERROR_LOG = open('error_log.txt','w',encoding='utf-8')
 
-meta={
-    'name':'',
-    'checkpoint_dir':'',
-    'summary_dir':'',
-    'model':'',
-    'data_meta':'',
-    'name':'',
 
-}
 def train_protype(meta):
     # 设置训练配置内容
     epoch = 50
-    source_name = meta['train_data']
-    checkpoint_dir = os.path.abspath(meta['checkpoint_dir'])
-    summary_dir = os.path.abspath(meta['summary_dir'])
+    source_name = meta['train_data'] # meta
+    checkpoint_dir = os.path.abspath(meta['checkpoint_dir']) # meta
+    summary_dir = os.path.abspath(meta['summary_dir']) # meta
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
     p = preprocess.Preprocessor()
-    logger = log_train(meta['name'])
-    data_meta = meta['data_meta']
+    logger = log_train(meta['name']) # meta
+    data_meta = meta['data_meta'] # meta
 
     # 模型搭建
     # with tf.device('/cpu:0'):
     # with tf.device('/device:GPU:0'):
-    m = meta['model']()
+    m = meta['model']() # meta
     ops = m.build_model('train')
 
 
@@ -93,7 +85,7 @@ def train_protype(meta):
                     try:
                         last_time = time.time()
 
-                        train_fun = meta['train_fun']
+                        train_fun = meta['train_fun'] # meta
 
                         loss,merge = train_fun(sess,data_gen,ops)
                         cur_time =time.time()
@@ -102,7 +94,7 @@ def train_protype(meta):
                         if global_step % 10 == 0:
                             train_writer.add_summary(merge,global_step/10)
                             logger.write_log([global_step/10,loss,total_cost])
-                        print('[INFO] Batch %d 训练结果：NLL=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, nll,time_cost,total_cost))
+                        print('[INFO] Batch %d 训练结果：NLL=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, loss ,time_cost,total_cost))
 
                         # print('[INFO] Batch %d'%batch_count)
                         # matplotlib 实现可视化loss
@@ -110,18 +102,19 @@ def train_protype(meta):
                         global_step += 1
                     except StopIteration:
                         print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
-                        saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+                        saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
                         break
-                    except Exception as e:
-                        print("[INFO] 因为程序错误停止训练，开始保存模型")
-                        saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+                    # except Exception as e:
+                    #
+                    #     print("[INFO] 因为程序错误停止训练，开始保存模型")
+                    #     saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
             except StopIteration:
                 print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
-                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+                saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
 
             except KeyboardInterrupt:
                 print("[INFO] 强行停止训练，开始保存模型")
-                saver.save(sess, os.path.join(checkpoint_dir, 'GEFG_summary'), global_step=i)
+                saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
 
 def train_ABS():
     epoche = 50
@@ -226,11 +219,11 @@ def train_GEFG():
     ops = m.build_model('train')
 
     # 配置数据生成器的元数据
-    meta = {
-        'MEL':m.MAX_EVID_LEN,
-        'MEC':m.MAX_EVIDS,
-        'MFL':m.MAX_FACT_LEN
-    }
+    # meta = {
+    #     'MEL':m.MAX_EVID_LEN,
+    #     'MEC':m.MAX_EVIDS,
+    #     'MFL':m.MAX_FACT_LEN
+    # }
     t_op = ops['train_op']
 
     # 训练过程
@@ -378,6 +371,38 @@ def valid_GEFG():
         except StopIteration:
 
             print('[INFO] Validation Finished, Report has been written in file %s',)
-train_ABS()
+# train_ABS()
 # valid_GEFG()
 # train_GEFG()
+
+GEFG = model.gated_evidence_fact_generation()
+GEFG_meta={
+    'name':'GEFG',
+    'train_data':'train_data.json',
+    'checkpoint_dir':'checkpoint_GEFG',
+    'summary_dir':'summary_GEFG',
+    'model':model.gated_evidence_fact_generation,
+    'data_meta':{
+        'MEL':GEFG.MAX_EVID_LEN,
+        'MEC':GEFG.MAX_EVIDS,
+        'MFL':GEFG.MAX_FACT_LEN
+    },
+    'train_fun':model.gated_evidence_fact_generation.train_fun,
+
+}
+ABS = model.ABS_model()
+ABS_meta={
+    'name':'ABS',
+    'train_data':'train_data.json',
+    'checkpoint_dir':'checkpoint_ABS',
+    'summary_dir':'summary_ABS',
+    'model':model.ABS_model,
+    'data_meta':{
+        'C':ABS.C,
+        'V':ABS.V
+    },
+    'train_fun':model.ABS_model,
+
+}
+
+train_protype(meta= ABS_meta)
