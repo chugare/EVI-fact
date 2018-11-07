@@ -6,13 +6,29 @@
 #
 import preprocess
 import model
+import Evaluate
 import tensorflow as tf
 import os
 import time
 import json
-
+import logging
 import datetime
+
+
+
 class log_train:
+    def __init__(self, name, t=None):
+        if not os.path.exists(name):
+            os.mkdir(name)
+        if t == None:
+            t = datetime.datetime.now().strftime("%Y%m%d_%H-%M-%S")
+        name = "./%s/%s_"%(name,name)+t
+
+        self.log_file = open(name,'w',encoding='utf-8')
+    def write_log(self,data_list):
+        data_list = [str(i) for i in data_list]
+        self.log_file.write('\t'.join(data_list)+'\n')
+class log_eval:
     def __init__(self, name, t=None):
         if not os.path.exists(name):
             os.mkdir(name)
@@ -47,15 +63,6 @@ def train_protype(meta):
     m = meta['model']() # meta
     ops = m.build_model('train')
 
-
-    # 配置数据生成器的元数据
-    # meta = {
-    #     'MEL':m.MAX_EVID_LEN,
-    #     'MEC':m.MAX_EVIDS,
-    #     'MFL':m.MAX_FACT_LEN
-    # }
-
-
     # 训练过程
     saver = tf.train.Saver()
     config = tf.ConfigProto(
@@ -78,16 +85,16 @@ def train_protype(meta):
         # 开始训练
         global_step = 0
         for i in range(epoch):
-            data_gen = p.data_format_train(source_name, meta=data_meta)
+            data_gen = p.data_provider(source_name, meta=data_meta)
             try:
                 batch_count = 0
                 while True:
                     try:
                         last_time = time.time()
 
-                        train_fun = meta['train_fun'] # meta
 
-                        train_res = train_fun(sess,data_gen,ops)
+
+                        train_res = m.train_fun(sess,data_gen,ops)
 
                         loss = train_res['loss']
                         merge = train_res['merge']
@@ -108,10 +115,10 @@ def train_protype(meta):
                         print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
                         saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
                         break
-                    # except Exception as e:
-                    #
-                    #     print("[INFO] 因为程序错误停止训练，开始保存模型")
-                    #     saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
+                    except Exception as e:
+                        logging.exception(e)
+                        print("[INFO] 因为程序错误停止训练，开始保存模型")
+                        saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
             except StopIteration:
                 print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
                 saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
@@ -119,6 +126,94 @@ def train_protype(meta):
             except KeyboardInterrupt:
                 print("[INFO] 强行停止训练，开始保存模型")
                 saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
+
+def valid_protype(meta):
+    # 设置训练配置内容
+    source_name = meta['eval_data'] # meta
+    checkpoint_dir = os.path.abspath(meta['checkpoint_dir']) # meta
+    summary_dir = os.path.abspath(meta['summary_dir']) # meta
+    p = preprocess.Preprocessor(SEG_BY_WORD=meta['seg_by_word'])
+    # logger = log_train(meta['name']) # meta
+    data_meta = meta['data_meta'] # meta
+
+    # 模型搭建
+    # with tf.device('/cpu:0'):
+    # with tf.device('/device:GPU:0'):
+    m = meta['model']() # meta
+    ops = m.build_model('valid')
+
+    # 训练过程
+    saver = tf.train.Saver()
+    config = tf.ConfigProto(
+        # log_device_placement=True
+    )
+    with tf.Session(config=config) as sess:
+        # 配置，包括参数初始化以及读取检查点
+        # init = tf.global_variables_initializer()
+        # sess.run(init)
+        checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
+        sess.graph.finalize()
+        train_writer = tf.summary.FileWriter(summary_dir,sess.graph)
+        start_epoch = 0
+        if checkpoint:
+            saver.restore(sess, checkpoint)
+        else:
+            print('[ERROR] 指定的验证文档不存在，验证程序退出')
+            return
+        start_time = time.time()
+
+        # 开始验证
+        global_step = 0
+        data_gen = p.data_provider(source_name, meta=data_meta)
+        report_data = {
+            'G_R1': 0.0,
+            'G_R2': 0.0,
+            'G_RL': 0.0,
+        }
+        res_list = []
+        try:
+            while True:
+                try:
+                    last_time = time.time()
+                    inter_fun = meta['interface_fun'] # meta
+                    inter_res = m.inter_fun(sess,data_gen,ops)
+                    out_seq = inter_res['out_seq']
+                    fact_seq = inter_res['fact_seq']
+                    out_sen = p.get_sentence(out_seq)
+                    fact_sen = p.get_sentence(fact_seq)
+                    rouge_v = Evaluate.ROUGE_eval(fact_sen,out_sen)
+                    cur_time =time.time()
+                    time_cost = cur_time-last_time
+                    total_cost = cur_time-start_time
+                    print('[INFO] 第 %d 个测试例子验证结束 ROUGE值为 %f  用时: %.2f 共计用时 %.2f 得到生成队列：' % (global_step, rouge_v[0] ,time_cost,total_cost))
+                    print('TRUE:'+fact_sen)
+                    print('GEN:'+out_sen)
+                    res_list.append({
+                        'R1':rouge_v[0],
+                        'R2':rouge_v[1],
+                        'RL':rouge_v[2]
+                    })
+                    report_data['G-R1'] += rouge_v[0]
+                    report_data['G-R2'] += rouge_v[1]
+                    report_data['G-RL'] += rouge_v[2]
+                    # print('[INFO] Batch %d'%batch_count)
+                    # matplotlib 实现可视化loss
+                    global_step += 1
+                except StopIteration:
+                    report_data['G_R1'] /= len(res_list)
+                    report_data['G_R2'] /= len(res_list)
+                    report_data['G_RL'] /= len(res_list)
+
+
+
+                    print("[INFO] 验证结束，正在生成报告..." % i)
+                    break
+                except Exception as e:
+                    logging.exception(e)
+        except KeyboardInterrupt:
+            print("[INFO] 强行停止训练，开始保存模型")
+
+
 
 def valid_gen_ABS():
     processor = preprocess.Preprocessor()
@@ -244,9 +339,7 @@ GEFG_meta={
         'MEC':GEFG.MAX_EVIDS,
         'MFL':GEFG.MAX_FACT_LEN,
         'BATCH_SIZE':1
-    },
-    'train_fun':model.gated_evidence_fact_generation.train_fun,
-
+    }
 }
 ABS = model.ABS_model()
 ABS_meta={
@@ -261,8 +354,7 @@ ABS_meta={
         'C':ABS.C,
         'V':ABS.V,
         'BATCH_SIZE':ABS.BATCH_SIZE
-    },
-    'train_fun':model.ABS_model.train_fun,
+    }
 
 }
 

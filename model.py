@@ -5,7 +5,8 @@
 #   南京大学软件学院 Nanjing University Software Institute
 #
 import tensorflow as tf
-
+import numpy as np
+from Evaluate import ROUGE_eval
 class Base_model:
     def set_meta(self,meta):
     # 调整模型的各个超参数
@@ -13,9 +14,10 @@ class Base_model:
     def build_model(self,mode):
     # 建立模型，返回所有的操作组成的字典
         pass
-    @staticmethod
-    def train_fun(sess,data_gen,ops):
+    def train_fun(self,sess,data_gen,ops):
     # 训练函数，用于训练框架中调用
+        pass
+    def inter_fun(self,sess,data_gen,ops):
         pass
 class ABS_model(Base_model):
     def __init__(self, config=None):
@@ -23,7 +25,7 @@ class ABS_model(Base_model):
         self.H = 200  # 输入词向量维度大小
         self.V = 10000  # 词汇量
         self.D = 200  # 输出词向量维度大小
-        self.C = 10  # 输出感受范围
+        self.C = 30  # 输出感受范围
         self.DC_LAYER = 2
         self.BATCH_SIZE = 50
         self.Q = 100
@@ -85,9 +87,13 @@ class ABS_model(Base_model):
         return gx
 
     #   此函数返回的值在经过softmax之后被看作是每一个单词在当前上下文以及原文的条件下的概率
-    def calc_nll(self, gx, y_t):
+    def calc_loss(self, gx, y_t):
         #   使用的训练损失函数是NLL negative log-likehood，中心思想是每一次生成的概率分布中，正确单词的概率值，如果比较大那么说明该单词的概率比较小，和实际情况不相符
         #   这一步的输入gx是经过nnlm模型计算的概率分布，y_t则是正确的下一个值的字典中的序号
+        y_one_hot = tf.one_hot(y_t, self.V)
+
+
+
         y_ind = tf.range(0, self.BATCH_SIZE)
         y_ind = tf.reshape(y_ind, [self.BATCH_SIZE, 1])
         y_t = tf.reshape(y_t, [self.BATCH_SIZE, -1])
@@ -103,8 +109,11 @@ class ABS_model(Base_model):
         input_y = tf.placeholder(dtype=tf.int32, shape=[self.BATCH_SIZE])
         y_context = tf.placeholder(tf.int32, shape=[self.BATCH_SIZE, self.C])
         gx = self.nnlm_build(input_x, y_context)
+        y_oh = tf.one_hot(input_y,self.V)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_oh,logits=gx)
         gx = tf.nn.softmax(gx)
-        nll = self.calc_nll(gx, input_y)
+        y_gen = tf.argmax(gx, 1)
+        nll = self.calc_loss(gx, input_y)
         nll_v = -tf.reduce_mean(tf.log(nll))
         tf.summary.histogram("NLL",nll_v)
         train_op = tf.train.AdamOptimizer(self.LR).minimize(nll_v)
@@ -115,37 +124,40 @@ class ABS_model(Base_model):
             'cont_y': y_context,
             'train_op': train_op,
             'nll': nll_v,
+            'cross_entropy':cross_entropy,
             'gx': gx,
+            'y_gen':y_gen,
             'merge':merge
 
         }
         return ops
-
-    def validation(self):
-        input_x = tf.placeholder(
-            dtype=tf.int32, shape=[self.BATCH_SIZE, -1]
-        )
-        input_y = tf.placeholder(dtype=tf.int32, shape=[self.BATCH_SIZE, -1])
-        y_context = tf.placeholder(tf.int32, shape=[self.BATCH_SIZE, -1])
-        gx = self.nnlm_build(input_x, y_context)
-        y_gen = tf.argmax(gx, 1)
-        nll = self.calc_nll(gx, input_y)
-        ops = {
-            'in_x': input_x,
-            'in_y': input_y,
-            'cont_y': y_context,
-            'y_gen': y_gen,
-            'nll': nll
-        }
-        return ops
-    @staticmethod
-    def train_fun(sess,data_gen,ops):
+    def train_fun(self,sess,data_gen,ops):
         in_x, yc, y = next(data_gen)
         _, nll, gx ,merge= sess.run([ops['train_op'], ops['nll'], ops['gx'],ops['merge']],
                               feed_dict={ops['in_x']: in_x, ops['in_y']: y, ops['cont_y']: yc})
         res = {
             'loss':nll,
             'merge':merge
+        }
+        return res
+    def inter_fun(self,sess,data_gen,ops):
+        in_x, fact_vec = next(data_gen)
+        yc = [0 for _ in range(self.C)]
+        next_word = 2
+        yc.append(2)
+        yc = yc[1:]
+        generate_seq = [2]
+        while not next_word == 1:
+
+            nw= sess.run([ ops['y_gen']],
+                              feed_dict={ops['in_x']: in_x, ops['cont_y']: np.array(yc)})
+            yc.append(nw)
+            yc = yc[1:]
+            generate_seq.append(nw)
+
+        res = {
+            'out_seq':generate_seq,
+            'fact_seq':fact_vec
         }
         return res
 
@@ -334,8 +346,7 @@ class gated_evidence_fact_generation(Base_model):
 
         return op
 
-    @staticmethod
-    def train_fun(sess,data_gen,ops):
+    def train_fun(self,sess,data_gen,ops):
         evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
         state_seq, output_seq, nll, merge, _ = sess.run(
             [ops['state_seq'], ops['output_seq'], ops['nll'], ops['merge'], ops['train_op']],

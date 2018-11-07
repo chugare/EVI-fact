@@ -95,7 +95,7 @@ class Preprocessor:
         return res
 
 
-    def ohencoder(self, ec_str):
+    def Nencoder(self, ec_str):
         if self.SEG_BY_WORD:
             grams = jieba.lcut(ec_str)
         else:
@@ -155,7 +155,7 @@ class Preprocessor:
                 res[C - i - 1] = title[pos - i - 1]
         return res
 
-    def data_format_train(self,data_source,meta):
+    def data_provider(self,data_source,meta):
 
         #   输入的数据是原始的文本形式，在这个函数中进行查找，oh化并按batch划分
         #   由于是训练用的数据，所以会分批处理，输入的参数包括批次，context长度等信息
@@ -169,7 +169,7 @@ class Preprocessor:
         #     }
         #   证据的文本分为多行
         # 根据所用模型的不同，输出数据的格式要求也有所不同，格式分为下面几种
-        if format_type =='ABS':
+        if format_type.startswith('ABS'):
             count = 0
             try:
                 V = meta['V']
@@ -177,6 +177,7 @@ class Preprocessor:
                 batch_size = meta['BATCH_SIZE']
             except KeyError:
                 print('[ERROR] The meta data expected for data preparation required more info (require: C,V ,BATCH)')
+                return
             art_vecs = []
             y_vecs = []
             yc_vecs = []
@@ -186,9 +187,10 @@ class Preprocessor:
                 article = ''
                 for e in evids:
                     article += e
-                art_vec = self.bowencoder(self.ohencoder(article),V)
-                title_vec = self.ohencoder(title)
-
+                art_vec = self.bowencoder(self.Nencoder(article),V)
+                title_vec = self.Nencoder(title)
+                if format_type == 'ABS_infer':
+                    yield art_vec,title_vec
                 for p in range(len(title_vec)):
                     art_vecs.append(art_vec)
                     y_vecs.append(title_vec[p])
@@ -215,8 +217,8 @@ class Preprocessor:
             for res in res_gen:
                 evids = res['evid']
                 title = res['fact']
-                art_vec = self.ohencoder()
-                title_vec = self.ohencoder(title)
+                art_vec = self.Nencoder()
+                title_vec = self.Nencoder(title)
 
                 for p in range(len(title_vec)):
                     art_vecs.append(art_vec)
@@ -244,8 +246,8 @@ class Preprocessor:
                 article = ''
                 for e in evids:
                     article += e
-                art_vec = self.ohencoder(article)
-                title_vec = self.ohencoder(title)
+                art_vec = self.Nencoder(article)
+                title_vec = self.Nencoder(title)
 
                 for p in range(len(title_vec)):
                     art_vecs.append(art_vec)
@@ -275,7 +277,7 @@ class Preprocessor:
                 evid_lens = []
                 for i in range(mec):
                     if i<len(evids):
-                        evid_oh = self.ohencoder(evids[i])
+                        evid_oh = self.Nencoder(evids[i])
                         tmp_vec = np.array(evid_oh)
                         padded_vec = np.concatenate((tmp_vec,np.zeros([mel-len(tmp_vec)])))
                         evid_vecs.append(padded_vec)
@@ -284,34 +286,13 @@ class Preprocessor:
                         evid_vecs.append(np.zeros(mel))
                         evid_lens.append(0)
 
-                fact_vec = self.ohencoder(fact)
+                fact_vec = self.Nencoder(fact)
                 fact_len = len(fact_vec)
                 fact_vec = np.concatenate([fact_vec,np.zeros([mfl-len(fact_vec)],dtype=np.int32)])
                 yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,fact_len
 
         else:
             print("[ERROR] Declaration of format type is required")
-    def data_format_eval(self, data_source,format_type, meta):
-        #   输入的数据是原始的文本形式，在这个函数中进行查找，oh化并按batch划分
-        #   验证的时候使用的是生成模型，所以不应该进行批处理，由模型自己产生的数据进行下一步推算，计算context的工作交由生成步骤来做
-        res_gen = self.read_file(data_source)
-        if format_type =='ABS':
-            #输出原始语料的词袋模型信息，以及摘要文档的oh编码序列
-            try:
-                V = meta['V']
-            except KeyError:
-                print('[ERROR] The meta data expected for data preparation required more info (require: C,V )')
-
-            for res in res_gen:
-                evids = res['evid']
-                title = res['fact']
-                article = ''
-                for e in evids:
-                    article += e
-                art_vec = self.bowencoder(self.ohencoder(article),V)
-                title_vec = self.ohencoder(title)
-
-                yield art_vec,title_vec
 def init():
     p = Preprocessor(False)
     p.init_dic('data.json')

@@ -145,28 +145,66 @@ def data_report():
 
 def sent_format(sentence):
     patterns = [
-        '\(\)'
+        r"\([一二三四五六七八九十]*\d*\)[，、．.,\s]*",
+        r"（[一二三四五六七八九十]*\d*）[，、．.,\s]*",
+        r"[一二三四五六七八九十]*\d*[，、．.,\s]+",
+        r"[⑼]",
+        "被告人的供述与辩解：*",
+        "被告人.*?供述([与和]辩解)?：*",
+        "证人证言及辨认笔录：*",
+        "\A(证人)*.*?(证词|证言)?证实：*",
+        "证人.*?证言：*",
+        ".*?的证言(。|，)证实",
+        "未到庭笔录证明",
+        "辨认笔录及照片",
+        "证明：",
+        "经审理查明"
     ]
+    for p in patterns:
+        sentence = re.sub(p,'',sentence)
+    return sentence
 
-
-    re.sub()
 def data_format():
     max_len_evid = 800
+    min_len_evid = 10
     max_len_fact = 600
+    min_len_fact = 10
     max_count_evid = 50
 
     res_file = open('FORMAT_data.json','w',encoding='utf-8')
     dataset = []
+    count = [0 for _ in range(6)]
     for set in read_json('RAW_DATA.json'):
+
         if len(set['fact'])>max_len_fact:
+            count[0] +=1
             continue
         elif len(set['evid'])>max_count_evid:
+            count[1] += 1
             continue
         elif len(max(set['evid'],key = lambda x:len(x))) > max_len_evid:
+            count[2] += 1
             continue
         else:
+            fact = sent_format(set['fact'])
+            if len(fact) < min_len_fact:
+                count[3] += 1
+                continue
+            evids = []
+            for e in set['evid']:
+                e = sent_format(e)
+                if len(e)< min_len_evid:
+                    continue
+                else:
+                    evids.append(e)
+            if len(e) == 0 :
+                count[4] += 1
+                continue
+
             dataset.append(set)
             continue
+    for i in count:
+        print(i)
     json.dump(dataset,res_file, ensure_ascii=False, indent=2)
 
 def seperate_data_set():
@@ -179,8 +217,11 @@ def seperate_data_set():
     json.dump(dt[400:],train_file,ensure_ascii=False, indent=2)
 
 if __name__ == '__main__':
+    # root_dic = 'F:\\交通肇事罪文书\\故意杀人罪'
     root_dic = 'F:\\交通肇事罪文书\\故意杀人罪'
-    XML2JSON_extract(root_dic)
+    # XML2JSON_extract(root_dic)
+
+
         # if len(i['fact'])<40:
         #     print('%d :"%s"'%(len(i['fact']),i['fact']))
     # seperate_data_set()

@@ -9,3 +9,7 @@ def ROUGE_eval(standard_sen,generated_sen):
     r = Rouge()
     res = r.get_scores(generated_sen,standard_sen)
     return res
+def ROUGE_eval_(standard_sen,generated_sen):
+    r = Rouge()
+    res = r.get_scores(generated_sen,standard_sen)
+    return res
