@@ -148,7 +148,6 @@ class ABS_model(Base_model):
         yc = yc[1:]
         generate_seq = [2]
         while not next_word == 1:
-
             nw= sess.run([ ops['y_gen']],
                               feed_dict={ops['in_x']: in_x, ops['cont_y']: np.array(yc)})
             yc.append(nw)

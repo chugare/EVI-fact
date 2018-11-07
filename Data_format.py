@@ -175,34 +175,32 @@ def data_format():
     dataset = []
     count = [0 for _ in range(6)]
     for set in read_json('RAW_DATA.json'):
-
-        if len(set['fact'])>max_len_fact:
+        fact = sent_format(set['fact'])
+        evids = []
+        for e in set['evid']:
+            e = sent_format(e)
+            if len(e) < min_len_evid:
+                continue
+            else:
+                evids.append(e)
+        if len(evids) == 0:
+            count[4] += 1
+            continue
+        if len(fact)>max_len_fact:
             count[0] +=1
             continue
-        elif len(set['evid'])>max_count_evid:
+        elif len(evids)>max_count_evid:
             count[1] += 1
             continue
-        elif len(max(set['evid'],key = lambda x:len(x))) > max_len_evid:
+        elif len(max(evids,key = lambda x:len(x))) > max_len_evid:
             count[2] += 1
             continue
         else:
-            fact = sent_format(set['fact'])
             if len(fact) < min_len_fact:
                 count[3] += 1
                 continue
-            evids = []
-            for e in set['evid']:
-                e = sent_format(e)
-                if len(e)< min_len_evid:
-                    continue
-                else:
-                    evids.append(e)
-            if len(e) == 0 :
-                count[4] += 1
-                continue
+        dataset.append({'fact':fact,'evid':evids})
 
-            dataset.append(set)
-            continue
     for i in count:
         print(i)
     json.dump(dataset,res_file, ensure_ascii=False, indent=2)
@@ -219,9 +217,10 @@ def seperate_data_set():
 if __name__ == '__main__':
     # root_dic = 'F:\\交通肇事罪文书\\故意杀人罪'
     root_dic = 'F:\\交通肇事罪文书\\故意杀人罪'
+
     # XML2JSON_extract(root_dic)
 
 
         # if len(i['fact'])<40:
         #     print('%d :"%s"'%(len(i['fact']),i['fact']))
-    # seperate_data_set()
+    seperate_data_set()
