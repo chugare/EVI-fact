@@ -98,7 +98,7 @@ def train_protype(meta):
                         if global_step % 10 == 0:
                             train_writer.add_summary(merge,global_step/10)
                             logger.write_log([global_step/10,loss,total_cost])
-                        print('[INFO] Batch %d 训练结果：NLL=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, loss ,time_cost,total_cost))
+                        print('[INFO] Batch %d 训练结果：LOSS=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, loss ,time_cost,total_cost))
 
                         # print('[INFO] Batch %d'%batch_count)
                         # matplotlib 实现可视化loss

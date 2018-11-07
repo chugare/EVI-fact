@@ -149,7 +149,10 @@ class Preprocessor:
     def context(title, pos, C):
         res = np.zeros([C], np.int32)
         for i in range(C):
-            res[C - i - 1] = title[pos - i - 1]
+            if pos-i-1<0:
+                res[C - i - 1] = 0
+            else:
+                res[C - i - 1] = title[pos - i - 1]
         return res
 
     def data_format_train(self,data_source,meta):
@@ -173,7 +176,7 @@ class Preprocessor:
                 C = meta['C']
                 batch_size = meta['BATCH_SIZE']
             except KeyError:
-                print('[ERROR] The meta data expected for data preparation required more info (require: C,V )')
+                print('[ERROR] The meta data expected for data preparation required more info (require: C,V ,BATCH)')
             art_vecs = []
             y_vecs = []
             yc_vecs = []
@@ -310,7 +313,7 @@ class Preprocessor:
 
                 yield art_vec,title_vec
 def init():
-    p = Preprocessor()
+    p = Preprocessor(False)
     p.init_dic('data.json')
 if __name__ == '__main__':
     print('[INFO] 初始化字典/词典')

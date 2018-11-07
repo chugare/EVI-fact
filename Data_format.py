@@ -4,6 +4,7 @@
 #   Create by simengzhao at 2018/10/30 上午11:34
 #   南京大学软件学院 Nanjing University Software Institute
 #
+import xml.etree.ElementTree as ET
 import os
 import re
 import jieba
@@ -11,121 +12,55 @@ import math
 import json
 import random
 
-def read_file():
-    rf = open('analyse_result.txt','r',encoding='utf-8')
-    res = {'fact':'',
-    'evid':[],}
-    for line in rf:
-        fact_pattern = '<FACT(.*?)>(.*?)</FACT.*>'
-        evid_pattern = '<EVID(.*?)>(.*?)<EVID.*>'
-        f = re.findall(fact_pattern,line)
-        e = re.findall(evid_pattern,line)
-        if len(f) >0 :
-            if res['fact']!= '':
-                yield res
-            res = {'fact': f[0][1],
-                   'evid': [], }
+filter_choose = ['证人证言','被告人供述和辩解']
 
-        elif len(e) >0:
-            res['evid'].append(e[0][1])
+def XML2JSON_extract(root_dic):
+    fl = os.listdir(root_dic)
+    data_file = open('RAW_DATA.json','w',encoding='utf-8')
+    count = 0
+    data_set = []
+    fl = [root_dic+'/'+f for f in fl]
+    for file in fl:
+        if not file.endswith('.xml'):
+            try:
+                fl_a = os.listdir(file)
+                fl_a = [file+'/'+f for f in fl_a]
+                fl += fl_a
+            except Exception:
+                pass
         else:
-            pass
 
-    yield res
+            try:
+                stree = ET.ElementTree(file = file)
+                fact = next(stree.iter('RDSS')).attrib['value']
+
+                renzheng = []
+                for ele in stree.iter(tag='ZJJL'):
+                    zl = next(ele.iterfind(path='ZJMX/ZL'))
+                    if zl.attrib['value'] in filter_choose:
+                        renzheng.append(ele.attrib['value'])
+
+                if len(renzheng)>1:
+                    res = {
+                        'fact':fact,
+                        'evid':renzheng
+                    }
+                    data_set.append(res)
+                    # log.write('<FACT%d>%s</FACT%d>\n' % (count, fact, count))
+                    # for rz in renzheng:
+                    #     log.write('<EVID%d>%s</EVID%d>\n' % (count, rz, count))
+            except StopIteration:
+                pass
+            count += 1
+    print("[INFO] 人证信息提取完毕，总共提取文书%d篇"%count)
+    json.dump(data_set,data_file,ensure_ascii=False,indent=2)
+
 
 def read_json(name):
     source = open(name,'r',encoding='utf-8')
     dt = json.load(source)
     for i in dt:
         yield i
-
-def idf_count(lib):
-    fl = os.listdir(lib)
-    count  = len(fl)
-    word_dic = {}
-    idf_file = open('idf.txt','w',encoding='utf-8')
-    tmp_dic= {}
-    for file in fl:
-        print(file)
-        if file.endswith('.xml'):
-            stree = ET.ElementTree(file=root_dic + '/' + file)
-            qw = next(stree.iter('QW')).attrib['value']
-            words = jieba.lcut(qw)
-            for w in words:
-                if w not in tmp_dic:
-                    tmp_dic[w] = ''
-            for w in tmp_dic:
-                if w not in word_dic:
-                    word_dic[w] = 0
-                word_dic[w] += 1
-
-    for w in word_dic:
-        if w ==' ':
-            continue
-        idf_file.write(w+' '+str(math.log(count/word_dic[w]+1))+'\n')
-
-def read_idf():
-    idf_file = open('idf.txt','r',encoding='utf-8')
-    res = {}
-    for line in idf_file:
-        w = line.split(' ')
-        res[w[0]] = float(w[1].strip())
-    return res
-
-def calc_tf(words):
-    res = {}
-    for w in words:
-        if w not in res:
-            res[w] = 0
-        res[w] += 1
-
-    return  res
-
-def share_word(f_e_set,fname):
-    idf = read_idf()
-    fact = f_e_set['fact']
-    evids = f_e_set['evid']
-    fact = sentence_simplified_process(fact)
-    fact_c = jieba.lcut(fact)
-    fact_tf = calc_tf(fact_c)
-    fact_res_file = open('fact_integrated/'+fname+'.txt','w',encoding='utf-8')
-    fact_seg_file = open('fact_segmented/'+fname+'.txt','w',encoding='utf-8')
-    fact_res_file.write('#  FACT : '+fact+'\n')
-    for evid in evids:
-        evid_w = jieba.lcut(sentence_simplified_process(evid))
-        evid_tf = calc_tf(evid_w)
-        score1 = 0.0    #   计算权重值的时候使用来自 事实 的tfidf值
-        score2 = 0.0    #   计算权重值的时候使用来自 证据 的tfidf值
-        for word in evid_w:
-            for fword in fact_c:
-                if word == fword:
-                    idf_v = 3.1
-                    if word  in idf:
-                        idf_v = idf[word]
-
-                    score1 +=  fact_tf[word]*idf_v
-                    score2 +=  evid_tf[word]*idf_v
-        fact_res_file.write('>  EVID : %f\t%f\t%s\n'%(score1,score2,evid))
-
-    fact_segs = fact.split('。')
-    for fact_seg in fact_segs:
-        fact_c = jieba.lcut(fact_seg)
-        fact_tf = calc_tf(fact_c)
-        fact_seg_file.write('#  FACT SEG : ' + fact_seg + '\n')
-        for evid in evids:
-            evid_w = jieba.lcut(sentence_simplified_process(evid))
-            evid_tf = calc_tf(evid_w)
-            score1 = 0.0  # 计算权重值的时候使用来自 事实 的tfidf值
-            score2 = 0.0  # 计算权重值的时候使用来自 证据 的tfidf值
-            for word in evid_w:
-                for fword in fact_c:
-                    if word == fword:
-                        idf_v = 3.1
-                        if word in idf:
-                            idf_v = idf[word]
-                        score1 += fact_tf[word] * idf_v
-                        score2 += evid_tf[word] * idf_v
-            fact_seg_file.write('>  EVID : %f\t%f\t%s\n' % (score1, score2, evid))
 
 #calc_evid_type()
 def data_report():
@@ -208,13 +143,21 @@ def data_report():
         log_file.write('%d\t'%c)
     log_file.write('\n')
 
-def data_reformat():
+def sent_format(sentence):
+    patterns = [
+        '\(\)'
+    ]
+
+
+    re.sub()
+def data_format():
     max_len_evid = 800
     max_len_fact = 600
     max_count_evid = 50
-    res_file = open('data.json','w',encoding='utf-8')
+
+    res_file = open('FORMAT_data.json','w',encoding='utf-8')
     dataset = []
-    for set in read_file():
+    for set in read_json('RAW_DATA.json'):
         if len(set['fact'])>max_len_fact:
             continue
         elif len(set['evid'])>max_count_evid:
@@ -227,7 +170,7 @@ def data_reformat():
     json.dump(dataset,res_file, ensure_ascii=False, indent=2)
 
 def seperate_data_set():
-    source = open('data.json', 'r', encoding='utf-8')
+    source = open('FORMAT_data.json', 'r', encoding='utf-8')
     dt = json.load(source)
     random.shuffle(dt)
     train_file = open('train_data.json', 'w', encoding='utf-8')
@@ -236,5 +179,8 @@ def seperate_data_set():
     json.dump(dt[400:],train_file,ensure_ascii=False, indent=2)
 
 if __name__ == '__main__':
-
-    seperate_data_set()
+    root_dic = 'F:\\交通肇事罪文书\\故意杀人罪'
+    XML2JSON_extract(root_dic)
+        # if len(i['fact'])<40:
+        #     print('%d :"%s"'%(len(i['fact']),i['fact']))
+    # seperate_data_set()
