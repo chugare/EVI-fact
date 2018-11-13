@@ -103,6 +103,9 @@ class ABS_model(Base_model):
 
     def build_model(self,mode):
         #   不同的encoder由于输出向量的维度不同，W向量的大小也不同，基础的方式是使用abs的encoder
+        if mode == 'valid':
+            self.BATCH_SIZE = 1
+
         input_x = tf.placeholder(
             dtype=tf.int32, shape=[self.BATCH_SIZE, self.V]
         )
@@ -147,13 +150,19 @@ class ABS_model(Base_model):
         yc.append(2)
         yc = yc[1:]
         generate_seq = [2]
-        while not next_word == 1:
-            nw= sess.run([ ops['y_gen']],
-                              feed_dict={ops['in_x']: in_x, ops['cont_y']: np.array(yc)})
-            yc.append(nw)
-            yc = yc[1:]
-            generate_seq.append(nw)
+        yca = np.array(yc)
+        yca = np.reshape(yc,[1,yca.shape[0]])
+        count = 0
+        while not next_word == 1 and count <400:
+            nw , gx= sess.run([ ops['y_gen'],ops['gx']],
+                              feed_dict={ops['in_x']: [in_x], ops['cont_y']: yca})
 
+            yc.append(nw[0])
+            yc = yc[1:]
+            yca = np.array(yc)
+            yca = np.reshape(yc, [1, yca.shape[0]])
+            generate_seq.append(nw[0])
+            count +=1
         res = {
             'out_seq':generate_seq,
             'fact_seq':fact_vec

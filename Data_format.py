@@ -223,4 +223,5 @@ if __name__ == '__main__':
 
         # if len(i['fact'])<40:
         #     print('%d :"%s"'%(len(i['fact']),i['fact']))
+    data_format()
     seperate_data_set()

@@ -92,8 +92,6 @@ def train_protype(meta):
                     try:
                         last_time = time.time()
 
-
-
                         train_res = m.train_fun(sess,data_gen,ops)
 
                         loss = train_res['loss']
@@ -157,6 +155,7 @@ def valid_protype(meta):
         start_epoch = 0
         if checkpoint:
             saver.restore(sess, checkpoint)
+            print('[INFO] 从检查点 %s 进行验证'%checkpoint)
         else:
             print('[ERROR] 指定的验证文档不存在，验证程序退出')
             return
@@ -175,12 +174,15 @@ def valid_protype(meta):
             while True:
                 try:
                     last_time = time.time()
-                    inter_fun = meta['interface_fun'] # meta
                     inter_res = m.inter_fun(sess,data_gen,ops)
                     out_seq = inter_res['out_seq']
                     fact_seq = inter_res['fact_seq']
                     out_sen = p.get_sentence(out_seq)
                     fact_sen = p.get_sentence(fact_seq)
+                    print(out_sen)
+                    print(fact_sen)
+                    if len(out_sen)<len(fact_sen):
+                        out_sen = out_sen[:len(fact_sen)]
                     rouge_v = Evaluate.ROUGE_eval(fact_sen,out_sen)
                     cur_time =time.time()
                     time_cost = cur_time-last_time
@@ -200,7 +202,7 @@ def valid_protype(meta):
                     # matplotlib 实现可视化loss
                     global_step += 1
                 except StopIteration:
-                    report_data['G_R1'] /= len(res_list)
+                    report_data['G_R1'] /= len(res_list)+1
                     report_data['G_R2'] /= len(res_list)
                     report_data['G_RL'] /= len(res_list)
 
@@ -315,7 +317,8 @@ def valid_GEFG():
                 # matplotlib 实现可视化loss
                 t_fact = p.get_sentence(list(fact_mat))
                 m_fact = p.get_sentence(output_seq)
-
+                print(t_fact)
+                print(m_fact)
 
                 global_step += 1
         except StopIteration:
@@ -357,5 +360,19 @@ ABS_meta={
     }
 
 }
-
-train_protype(meta= ABS_meta)
+ABS_VALID_meta ={
+    'name':'ABS_VALID',
+    'eval_data':'test_data.json',
+    'checkpoint_dir': 'checkpoint_ABS',
+    'summary_dir':'summary_ABS_V',
+    'seg_by_word':False,
+    'model':model.ABS_model,
+    'data_meta':{
+        'NAME':'ABS_infer',
+        'C':ABS.C,
+        'V':ABS.V,
+        'BATCH_SIZE':ABS.BATCH_SIZE
+    }
+}
+valid_protype(meta=ABS_VALID_meta)
+# train_protype(meta= ABS_meta)
