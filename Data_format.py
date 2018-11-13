@@ -220,7 +220,7 @@ if __name__ == '__main__':
 
     # XML2JSON_extract(root_dic)
 
-
+    data_format()
         # if len(i['fact'])<40:
         #     print('%d :"%s"'%(len(i['fact']),i['fact']))
     seperate_data_set()

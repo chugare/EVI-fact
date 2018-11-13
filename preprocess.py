@@ -191,6 +191,7 @@ class Preprocessor:
                 title_vec = self.Nencoder(title)
                 if format_type == 'ABS_infer':
                     yield art_vec,title_vec
+                    continue
                 for p in range(len(title_vec)):
                     art_vecs.append(art_vec)
                     y_vecs.append(title_vec[p])
