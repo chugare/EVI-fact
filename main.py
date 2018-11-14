@@ -179,41 +179,32 @@ def valid_protype(meta):
                     fact_seq = inter_res['fact_seq']
                     out_sen = p.get_sentence(out_seq)
                     fact_sen = p.get_sentence(fact_seq)
-                    print(out_sen)
-                    print(fact_sen)
+
                     if len(out_sen)<len(fact_sen):
                         out_sen = out_sen[:len(fact_sen)]
                     rouge_v = Evaluate.ROUGE_eval(fact_sen,out_sen)
                     cur_time =time.time()
                     time_cost = cur_time-last_time
                     total_cost = cur_time-start_time
-                    print('[INFO] 第 %d 个测试例子验证结束 ROUGE值为 %f  用时: %.2f 共计用时 %.2f 得到生成队列：' % (global_step, rouge_v[0] ,time_cost,total_cost))
+                    print('[INFO] 第 %d 个测试例子验证结束  用时: %.2f 共计用时 %.2f 得到生成队列：' % (global_step,time_cost,total_cost))
                     print('TRUE:'+fact_sen)
                     print('GEN:'+out_sen)
-                    res_list.append({
-                        'R1':rouge_v[0],
-                        'R2':rouge_v[1],
-                        'RL':rouge_v[2]
-                    })
-                    report_data['G-R1'] += rouge_v[0]
-                    report_data['G-R2'] += rouge_v[1]
-                    report_data['G-RL'] += rouge_v[2]
-                    # print('[INFO] Batch %d'%batch_count)
-                    # matplotlib 实现可视化loss
+                    res_list.append(
+                        rouge_v
+                    )
                     global_step += 1
                 except StopIteration:
-                    report_data['G_R1'] /= len(res_list)+1
-                    report_data['G_R2'] /= len(res_list)
-                    report_data['G_RL'] /= len(res_list)
 
+                    report_file = open(meta['name']+'_valid.json','w',encoding='utf-8')
+                    json.dump(res_list,report_file)
 
+                    print("[INFO] 验证结束，正在生成报告..." )
 
-                    print("[INFO] 验证结束，正在生成报告..." % i)
                     break
-                except Exception as e:
-                    logging.exception(e)
+                # except Exception as e:
+                #     logging.exception(e)
         except KeyboardInterrupt:
-            print("[INFO] 强行停止训练，开始保存模型")
+            print("[INFO] 强行停止验证")
 
 
 

@@ -7,7 +7,14 @@
 from rouge import Rouge
 def ROUGE_eval(standard_sen,generated_sen):
     r = Rouge()
-    res = r.get_scores(generated_sen,standard_sen)
+    s = ''
+    g = ''
+    for i in standard_sen:
+        s += i+' '
+
+    for i in generated_sen:
+        g += i + ' '
+    res = r.get_scores(g,s)
     return res
 def ROUGE_eval_(standard_sen,generated_sen):
     r = Rouge()
