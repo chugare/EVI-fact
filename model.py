@@ -166,6 +166,7 @@ class ABS_model(Base_model):
         res = {
             'out_seq':generate_seq,
             'fact_seq':fact_vec
+
         }
         return res
 
