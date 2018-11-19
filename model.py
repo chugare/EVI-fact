@@ -9,12 +9,12 @@ import numpy as np
 from Evaluate import ROUGE_eval
 class Base_model:
     def set_meta(self,meta):
-    # 调整模型的各个超参数
-        pass
+        for k in meta:
+            self.__dict__[k] = meta[k]
     def build_model(self,mode):
     # 建立模型，返回所有的操作组成的字典
         pass
-    def train_fun(self,sess,data_gen,ops):
+    def train_fun(self,sess,data_gen,ops,global_step):
     # 训练函数，用于训练框架中调用
         pass
     def inter_fun(self,sess,data_gen,ops):
@@ -30,13 +30,12 @@ class ABS_model(Base_model):
         self.BATCH_SIZE = 50
         self.Q = 100
         self.LR = 0.001
+        self.DECAY_STEP = 5
 
     # 在ABS的论文之中，介绍了三种编码器，分别是词袋模型的编码器，CNN的编码器，以及Attention based的编码器
     #
     # 由于磁带模型的编码器没有任何的序列信息，所以改进的时候在AttentionBased的情况中添加了上下文的关系
-    def set_meta(self,meta):
-        for k in meta:
-            self.__dict__[k] = meta[k]
+
     def embedding_x(self, x):
         F = tf.get_variable(name='embedding_F', shape=[self.V, self.H],
                             initializer=tf.truncated_normal_initializer(stddev=0.2))
@@ -134,7 +133,7 @@ class ABS_model(Base_model):
 
         }
         return ops
-    def train_fun(self,sess,data_gen,ops):
+    def train_fun(self,sess,data_gen,ops,global_step):
         in_x, yc, y = next(data_gen)
         _, nll, gx ,merge= sess.run([ops['train_op'], ops['nll'], ops['gx'],ops['merge']],
                               feed_dict={ops['in_x']: in_x, ops['in_y']: y, ops['cont_y']: yc})
@@ -183,7 +182,10 @@ class gated_evidence_fact_generation(Base_model):
         self.VEC_SIZE = 100
         self.DECODER_NUM_UNIT = 100
         self.LR = 0.002
-
+        self.OH_ENCODER = False
+        self.DECAY_STEP = 5
+        self.DECAY_RATE = 0.8
+        self.CONTEXT_LEN = 20
     def get_cells(self):
         fw_cell = tf.nn.rnn_cell.BasicLSTMCell(self.NUM_UNIT)
         bw_cell = tf.nn.rnn_cell.BasicLSTMCell(self.NUM_UNIT)
@@ -261,10 +263,15 @@ class gated_evidence_fact_generation(Base_model):
         evid_count = tf.placeholder(dtype=tf.int32)
         fact_mat = tf.placeholder(dtype=tf.int32, shape=[self.MAX_FACT_LEN])
         fact_len = tf.placeholder(dtype=tf.int32)
+        global_step = tf.placeholder(dtype=tf.int32)
         # 可以设置直接从已有的词向量读入
         embedding_t = tf.get_variable('embedding_table', shape=[self.MAX_VOCA_SZIE, self.VEC_SIZE],
                                       initializer=tf.truncated_normal_initializer())
-        evid_mat = tf.nn.embedding_lookup(embedding_t, evid_mat_r)
+        fact_mat_emb = tf.nn.embedding_lookup(embedding_t,fact_mat)
+        if self.OH_ENCODER:
+            evid_mat = tf.one_hot(evid_mat_r,self.MAX_VOCA_SZIE)
+        else:
+            evid_mat = tf.nn.embedding_lookup(embedding_t, evid_mat_r)
         i = tf.constant(0)
 
         cells = self.get_cells()
@@ -295,13 +302,30 @@ class gated_evidence_fact_generation(Base_model):
         nll = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False)
         gate_value = tf.TensorArray(dtype=tf.int32, size=fact_len, clear_after_read=False)
 
+
+
+        def nnlm_context_calc(i):
+            context_matrix = tf.cond(tf.less(i,self.CONTEXT_LEN),lambda: tf.pad(fact_mat_emb[:i],[[0,0],[tf.sub(self.CONTEXT_LEN,i),0]]),lambda :fact_mat_emb[tf.sub(i,self.CONTEXT_LEN):i])
+
+
+
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
+
+
+
+
             context_vec = tf.cond(tf.equal(i, 0),
                                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT * 2]),
                                   lambda: _state_seq.read(tf.subtract(i, 1)))
             # 计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验
+
+
+
             choosed_state, index = self.gated_choose(output_ta, evid_len, evid_count, context_vec)
             output, state = decoder_cell.apply(state_ta.read(index), run_state)
+
+
+
             # 生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
             mat_mul = map_out_w * output
             _gate_value = _gate_value.write(i,index)
@@ -334,8 +358,8 @@ class gated_evidence_fact_generation(Base_model):
         merge = tf.summary.merge_all()
         state_seq = state_seq.stack()
         output_seq = output_seq.stack()
-
-        adam = tf.train.AdamOptimizer(self.LR)
+        e_lr = tf.train.exponential_decay(self.LR,global_step=global_step,decay_steps=self.DECAY_STEP,decay_rate=self.DECAY_RATE,staircase=False)
+        adam = tf.train.AdamOptimizer(e_lr)
         t_op = adam.minimize(nll)
 
         op = {
@@ -344,6 +368,7 @@ class gated_evidence_fact_generation(Base_model):
             'evid_count': evid_count,
             'fact_mat': fact_mat,
             'fact_len': fact_len,
+            'global_step':global_step,
             'state_seq': state_seq,
             'output_seq': output_seq,
             'nll': nll,
@@ -355,7 +380,7 @@ class gated_evidence_fact_generation(Base_model):
 
         return op
 
-    def train_fun(self,sess,data_gen,ops):
+    def train_fun(self,sess,data_gen,ops,global_step):
         evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
         state_seq, output_seq, nll, merge, _ = sess.run(
             [ops['state_seq'], ops['output_seq'], ops['nll'], ops['merge'], ops['train_op']],
@@ -363,7 +388,8 @@ class gated_evidence_fact_generation(Base_model):
                        ops['evid_len']: evid_len,
                        ops['evid_count']: evid_count,
                        ops['fact_mat']: fact_mat,
-                       ops['fact_len']: fact_len},
+                       ops['fact_len']: fact_len,
+                       ops['global_step']:global_step}
             )
 
         return {

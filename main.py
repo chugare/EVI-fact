@@ -57,10 +57,13 @@ def train_protype(meta):
     logger = log_train(meta['name']) # meta
     data_meta = meta['data_meta'] # meta
 
+
     # 模型搭建
     # with tf.device('/cpu:0'):
     # with tf.device('/device:GPU:0'):
     m = meta['model']() # meta
+    if 'model_meta' in meta:
+        m.set_meta(meta['model_meta'])
     ops = m.build_model('train')
 
     # 训练过程
@@ -92,7 +95,7 @@ def train_protype(meta):
                     try:
                         last_time = time.time()
 
-                        train_res = m.train_fun(sess,data_gen,ops)
+                        train_res = m.train_fun(sess,data_gen,ops,i)
 
                         loss = train_res['loss']
                         merge = train_res['merge']
@@ -100,7 +103,7 @@ def train_protype(meta):
                         cur_time =time.time()
                         time_cost = cur_time-last_time
                         total_cost = cur_time-start_time
-                        if global_step % 10 == 0:
+                        if global_step % 400 == 0:
                             train_writer.add_summary(merge,global_step/10)
                             logger.write_log([global_step/10,loss,total_cost])
                         print('[INFO] Batch %d 训练结果：LOSS=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, loss ,time_cost,total_cost))
@@ -365,5 +368,5 @@ ABS_VALID_meta ={
         'BATCH_SIZE':ABS.BATCH_SIZE
     }
 }
-valid_protype(meta=ABS_VALID_meta)
-# train_protype(meta= ABS_meta)
+#valid_protype(meta=ABS_VALID_meta)
+train_protype(meta= GEFG_meta)
