@@ -180,7 +180,7 @@ class gated_evidence_fact_generation(Base_model):
         self.MAX_FACT_LEN = 600
         self.MAX_VOCA_SZIE = 10000
         self.VEC_SIZE = 100
-        self.DECODER_NUM_UNIT = 100
+        self.DECODER_NUM_UNIT = 400
         self.LR = 0.002
         self.OH_ENCODER = False
         self.DECAY_STEP = 5
@@ -224,15 +224,18 @@ class gated_evidence_fact_generation(Base_model):
     def gated_choose(self, multi_states, evid_len, evid_count, context_vec):
         # 使用证据编码后的全部的隐层状态来计算gate值
         gate_value = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
-        attention_var_s = tf.get_variable('Attention_w', dtype=tf.float32,
+        attention_var_gate = tf.get_variable('attention_w', dtype=tf.float32,
                                           shape=[self.NUM_UNIT * 2, self.DECODER_NUM_UNIT * 2],
                                           initializer=tf.truncated_normal_initializer())
         i = tf.constant(0)
 
+        attention_var_gen = tf.get_variable('attention_g',dtype=tf.float32,
+                                            shape=[self])
+
         def _gate_calc(state_seq, context_vec):
             state_seq = tf.reshape(state_seq, shape=[state_seq.shape[1], state_seq.shape[2]])
             context_vec = tf.reshape(context_vec, [-1])
-            gate_v = tf.reduce_mean((tf.matmul(state_seq, attention_var_s) * context_vec))
+            gate_v = tf.reduce_mean((tf.matmul(state_seq, attention_var_gate) * context_vec))
             return gate_v
 
         def _step(i, mul_states, context_vec, gate_value):
@@ -307,6 +310,7 @@ class gated_evidence_fact_generation(Base_model):
         def nnlm_context_calc(i):
             context_matrix = tf.cond(tf.less(i,self.CONTEXT_LEN),lambda: tf.pad(fact_mat_emb[:i],[[0,0],[tf.sub(self.CONTEXT_LEN,i),0]]),lambda :fact_mat_emb[tf.sub(i,self.CONTEXT_LEN):i])
 
+        def attention_context(context,evid_index):
 
 
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
