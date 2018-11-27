@@ -300,7 +300,6 @@ class gated_evidence_fact_generation(Base_model):
         attention_var_gen = tf.get_variable('attention_g', dtype=tf.float32,
                                             shape=[ self.VEC_SIZE,self.DECODER_NUM_UNIT * 2])
 
-        i = tf.constant(0)
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
 
 
@@ -310,11 +309,20 @@ class gated_evidence_fact_generation(Base_model):
                                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT * 2]),
                                   lambda: _state_seq.read(tf.subtract(i, 1)))
             # 计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验
-            j = tf.constant(0)
             gate_value = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
             attention_vec_evid = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
+            decoder_state_ta = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
+            loss_res_ta = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
+
 
             # 在训练的时候，由于每一个证据的关联性都不确定，所以我想把从每一个证据生成的新数据内容都进行训练和梯度下降
+            _step_input = {
+                'decoder_state_ta':decoder_state_ta,
+                'context_vec':context_vec,
+                'gate_value':gate_value,
+                'attention_vec_evid':attention_vec_evid,
+                'loss_res_ta':loss_res_ta
+            }
 
             def _gate_calc(word_vec_seq, context_vec):
                 word_vec_seq = tf.reshape(word_vec_seq, shape=[word_vec_seq.shape[1], word_vec_seq.shape[2]])
@@ -324,55 +332,94 @@ class gated_evidence_fact_generation(Base_model):
                 align_m  = tf.nn.softmax(align)
                 content_vec = tf.reduce_sum(align_m * word_vec_seq ,0)
                 return gate_v,content_vec
-            def _step(j, context_vec, gate_value,attention_vec_evid):
+
+            def _step(j,_step_input):
+
+                decoder_state_ta = _step_input['decoder_state_ta']
+                context_vec = _step_input['context_vec']
+                gate_value = _step_input['gate_value']
+                attention_vec_evid = _step_input['attention_vec_evid']
+                loss_res_ta = _step_input['loss_res_ta']
+
                 word_vec_seq = tf.slice(evid_mat[i],0,evid_len[i])
                 gate_v,content_vec =_gate_calc(word_vec_seq, context_vec)
                 gate_value = gate_value.write(i,gate_v)
                 attention_vec_evid = attention_vec_evid.write(i,content_vec)
                 j = tf.add(j, 1)
-                return j, context_vec, gate_value,attention_vec_evid
 
-            _, _, gate_value,attention_vec_evid = tf.while_loop(lambda j, *_: j < evid_len[j], _step,
-                                                [j, context_vec, gate_value,attention_vec_evid],
+                if mode == 'train':
+                    decoder_output,decoder_state = decoder_cell.apply(content_vec,run_state)
+                    mat_mul = map_out_w * decoder_output
+                    dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
+                    true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
+                    loss = tf.nn.softmax_cross_entropy_with_logits(dis_v, true_l, name='Cross_entropy')*gate_v
+                    decoder_state_ta = decoder_state_ta.write(j,decoder_state)
+                    loss_res_ta = loss_res_ta.write(j,loss)
+
+
+                _step_output = {
+                     'decoder_state_ta': decoder_state_ta,
+                     'context_vec': context_vec,
+                     'gate_value': gate_value,
+                     'attention_vec_evid': attention_vec_evid,
+                     'loss_res_ta': loss_res_ta
+                }
+                return j,_step_output
+
+            _, _step_output = tf.while_loop(lambda j, *_: j < evid_len[j], _step,
+                                                [tf.constant(0),_step_input],
                                                 name='get_gate_value_loop')
-            gate_value = gate_value.stack()
-            i = tf.argmax(gate_value)
-            i = tf.cast(i, tf.int32)
-            sen_vec = multi_states.read(i)
 
-            output, state = decoder_cell.apply(state_ta.read(index), run_state)
+            decoder_state_ta = _step_output['decoder_state_ta']
+            context_vec = _step_output['context_vec']
+            gate_value = _step_output['gate_value']
+            attention_vec_evid = _step_output['attention_vec_evid']
+            loss_res_ta = _step_output['loss_res_ta']
 
 
-
-            # 生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
-            mat_mul = map_out_w * output
-            _gate_value = _gate_value.write(i,index)
-            dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
-
-            char_most_pro = tf.argmax(dis_v)
-            char_most_pro = tf.cast(char_most_pro, tf.int32)
             if mode == 'train':
             # 11/06 更改损失函数变为交叉熵
-                true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
-                loss = tf.nn.softmax_cross_entropy_with_logits(dis_v,true_l,name='Cross_entropy')
-                nll.write(i,loss)
+                total_loss = loss_res_ta.stack()
+                next_state_i = tf.cast(tf.argmax(total_loss),tf.int32)
+                run_state = decoder_state_ta.read(next_state_i)
+                total_loss = tf.reduce_mean(total_loss)
+                # 11/27 更改损失计算方式为从每一个证据生成进行计算
+                # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
+                # loss = tf.nn.softmax_cross_entropy_with_logits(dis_v,true_l,name='Cross_entropy')
+                #
+                nll.write(i, total_loss)
                 # dis_v = tf.nn.softmax(dis_v)
                 # nll = nll.write(i, -tf.log(dis_v[fact_mat[i]]))
-            # 对每一个单词的分布取最大值
-            _state_seq = _state_seq.write(i, state)
-            generated_seq = generated_seq.write(i, char_most_pro)
+            else:
+                # 对每一个单词的分布取最大值
+                gate_index = tf.argmax(gate_value)
+                gate_index = tf.cast(gate_index, tf.int32)
+                _gate_value = _gate_value.write(i, gate_index)
+
+                # 生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
+                content_vec = attention_vec_evid.read(gate_index)
+                decoder_output, run_state = decoder_cell.apply(content_vec, run_state)
+                mat_mul = map_out_w * decoder_output
+                dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
+
+                char_most_pro = tf.argmax(dis_v)
+                char_most_pro = tf.cast(char_most_pro, tf.int32)
+                _state_seq = _state_seq.write(i, run_state)
+                generated_seq = generated_seq.write(i, char_most_pro)
             # 生成context向量
+
             i = tf.add(i, 1)
-            return i, _state_seq, generated_seq, state, _gate_value, nll
+
+            return i, _state_seq, generated_seq, run_state, _gate_value, nll
 
         _, state_seq, output_seq, run_state, gate_value, nll = tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
-                                                                 [i, state_seq, output_seq, run_state, gate_value, nll],
+                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value, nll],
                                                                  name='generate_word_loop')
         nll = nll.stack()
         gate_value = gate_value.stack()
         nll = tf.reduce_mean(nll)
-        tf.summary.histogram('NLL', nll)
-        merge = tf.summary.merge_all()
+        # tf.summary.histogram('NLL', nll)
+        # merge = tf.summary.merge_all()
         state_seq = state_seq.stack()
         output_seq = output_seq.stack()
         e_lr = tf.train.exponential_decay(self.LR,global_step=global_step,decay_steps=self.DECAY_STEP,decay_rate=self.DECAY_RATE,staircase=False)
@@ -389,7 +436,7 @@ class gated_evidence_fact_generation(Base_model):
             'state_seq': state_seq,
             'output_seq': output_seq,
             'nll': nll,
-            'merge': merge,
+            # 'merge': merge,
             'gate_value':gate_value,
             'train_op':t_op
 
