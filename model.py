@@ -325,12 +325,14 @@ class gated_evidence_fact_generation(Base_model):
             }
 
             def _gate_calc(word_vec_seq, context_vec):
-                word_vec_seq = tf.reshape(word_vec_seq, shape=[word_vec_seq.shape[1], word_vec_seq.shape[2]])
+                # word_vec_seq = tf.reshape(word_vec_seq, shape=[word_vec_seq.shape[1], word_vec_seq.shape[2]])
                 context_vec = tf.reshape(context_vec, [-1])
                 gate_v = tf.reduce_mean((tf.matmul(word_vec_seq, attention_var_gate) * context_vec))
                 align = tf.matmul(word_vec_seq, attention_var_gen) * context_vec
-                align_m  = tf.nn.softmax(align)
-                content_vec = tf.reduce_sum(align_m * word_vec_seq ,0)
+                align = tf.reduce_sum(align,1)
+                print(align)
+                align_m = tf.nn.softmax(align)
+                content_vec = tf.reduce_sum(align_m * word_vec_seq ,)
                 return gate_v,content_vec
 
             def _step(j,_step_input):
@@ -341,13 +343,14 @@ class gated_evidence_fact_generation(Base_model):
                 attention_vec_evid = _step_input['attention_vec_evid']
                 loss_res_ta = _step_input['loss_res_ta']
 
-                word_vec_seq = tf.slice(evid_mat[i],0,evid_len[i])
+                word_vec_seq = evid_mat[i][0:evid_len[i]]
                 gate_v,content_vec =_gate_calc(word_vec_seq, context_vec)
                 gate_value = gate_value.write(i,gate_v)
                 attention_vec_evid = attention_vec_evid.write(i,content_vec)
                 j = tf.add(j, 1)
 
                 if mode == 'train':
+                    print(content_vec)
                     decoder_output,decoder_state = decoder_cell.apply(content_vec,run_state)
                     mat_mul = map_out_w * decoder_output
                     dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
