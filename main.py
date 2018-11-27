@@ -57,10 +57,13 @@ def train_protype(meta):
     logger = log_train(meta['name']) # meta
     data_meta = meta['data_meta'] # meta
 
+
     # 模型搭建
     # with tf.device('/cpu:0'):
     # with tf.device('/device:GPU:0'):
     m = meta['model']() # meta
+    if 'model_meta' in meta:
+        m.set_meta(meta['model_meta'])
     ops = m.build_model('train')
 
     # 训练过程
@@ -92,16 +95,16 @@ def train_protype(meta):
                     try:
                         last_time = time.time()
 
-                        train_res = m.train_fun(sess,data_gen,ops)
+                        train_res = m.train_fun(sess,data_gen,ops,i)
 
                         loss = train_res['loss']
-                        merge = train_res['merge']
+                        # merge = train_res['merge']
 
                         cur_time =time.time()
                         time_cost = cur_time-last_time
                         total_cost = cur_time-start_time
-                        if global_step % 10 == 0:
-                            train_writer.add_summary(merge,global_step/10)
+                        if global_step % 400 == 0:
+                            # train_writer.add_summary(merge,global_step/10)
                             logger.write_log([global_step/10,loss,total_cost])
                         print('[INFO] Batch %d 训练结果：LOSS=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, loss ,time_cost,total_cost))
 
@@ -144,6 +147,7 @@ def valid_protype(meta):
     saver = tf.train.Saver()
     config = tf.ConfigProto(
         # log_device_placement=True
+        report_tensor_allocations_upon_oom=True
     )
     with tf.Session(config=config) as sess:
         # 配置，包括参数初始化以及读取检查点
@@ -170,6 +174,9 @@ def valid_protype(meta):
             'G_RL': 0.0,
         }
         res_list = []
+
+        report_txt = open('rt.txt', 'w', encoding='utf-8')
+
         try:
             while True:
                 try:
@@ -179,37 +186,40 @@ def valid_protype(meta):
                     fact_seq = inter_res['fact_seq']
                     out_sen = p.get_sentence(out_seq)
                     fact_sen = p.get_sentence(fact_seq)
+
+                    if len(out_sen)<len(fact_sen):
+                        out_sen = out_sen[:len(fact_sen)]
                     rouge_v = Evaluate.ROUGE_eval(fact_sen,out_sen)
                     cur_time =time.time()
                     time_cost = cur_time-last_time
                     total_cost = cur_time-start_time
-                    print('[INFO] 第 %d 个测试例子验证结束 ROUGE值为 %f  用时: %.2f 共计用时 %.2f 得到生成队列：' % (global_step, rouge_v[0] ,time_cost,total_cost))
+                    print('[INFO] 第 %d 个测试例子验证结束  用时: %.2f 共计用时 %.2f 得到生成队列：' % (global_step,time_cost,total_cost))
                     print('TRUE:'+fact_sen)
                     print('GEN:'+out_sen)
-                    res_list.append({
-                        'R1':rouge_v[0],
-                        'R2':rouge_v[1],
-                        'RL':rouge_v[2]
-                    })
-                    report_data['G-R1'] += rouge_v[0]
-                    report_data['G-R2'] += rouge_v[1]
-                    report_data['G-RL'] += rouge_v[2]
-                    # print('[INFO] Batch %d'%batch_count)
-                    # matplotlib 实现可视化loss
+                    report_txt.write('> 正确文本%d\n' % global_step)
+                    report_txt.write('> %s\n> \n' % fact_sen)
+                    report_txt.write('> 生成文本%d\n' % global_step)
+                    report_txt.write('> %s\n\n' % out_sen)
+
+                    res_list.append(
+                        rouge_v
+                    )
                     global_step += 1
+
+                    if global_step == 50:
+                        break
                 except StopIteration:
-                    report_data['G_R1'] /= len(res_list)+1
-                    report_data['G_R2'] /= len(res_list)
-                    report_data['G_RL'] /= len(res_list)
 
+                    report_file = open(meta['name']+'_valid.json','w',encoding='utf-8')
+                    json.dump(res_list,report_file)
 
+                    print("[INFO] 验证结束，正在生成报告..." )
 
-                    print("[INFO] 验证结束，正在生成报告..." % i)
                     break
-                except Exception as e:
-                    logging.exception(e)
+                # except Exception as e:
+                #     logging.exception(e)
         except KeyboardInterrupt:
-            print("[INFO] 强行停止训练，开始保存模型")
+            print("[INFO] 强行停止验证")
 
 
 
@@ -313,7 +323,8 @@ def valid_GEFG():
                 # matplotlib 实现可视化loss
                 t_fact = p.get_sentence(list(fact_mat))
                 m_fact = p.get_sentence(output_seq)
-
+                print(t_fact)
+                print(m_fact)
 
                 global_step += 1
         except StopIteration:
@@ -369,5 +380,5 @@ ABS_VALID_meta ={
         'BATCH_SIZE':ABS.BATCH_SIZE
     }
 }
-valid_protype(meta=ABS_VALID_meta)
-# train_protype(meta= ABS_meta)
+#valid_protype(meta=ABS_VALID_meta)
+train_protype(meta= ABS_meta)

@@ -85,10 +85,10 @@ class Preprocessor:
             dic_file.write('%s %d\n' % (i, self.GRAM2N[i]))
 
     def get_sentence(self, index_arr):
-        res = []
+        res = ''
         for i in range(len(index_arr)):
             if index_arr[i] != 1:
-               res.append(self.N2GRAM[index_arr[i]])
+               res+=(self.N2GRAM[index_arr[i]])
             else:
                 break
 
@@ -296,7 +296,7 @@ class Preprocessor:
             print("[ERROR] Declaration of format type is required")
 def init():
     p = Preprocessor(False)
-    p.init_dic('data.json')
+    p.init_dic('RAW_DATA.json')
 if __name__ == '__main__':
     print('[INFO] 初始化字典/词典')
     init()
