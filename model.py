@@ -300,14 +300,22 @@ class gated_evidence_fact_generation(Base_model):
         attention_var_gen = tf.get_variable('attention_g', dtype=tf.float32,
                                             shape=[ self.VEC_SIZE,self.DECODER_NUM_UNIT * 2])
 
+        i = tf.constant(0)
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
+
+
+
+
             context_vec = tf.cond(tf.equal(i, 0),
                                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT * 2]),
                                   lambda: _state_seq.read(tf.subtract(i, 1)))
             # 计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验
-            i = tf.constant(0)
+            j = tf.constant(0)
             gate_value = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
             attention_vec_evid = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
+
+            # 在训练的时候，由于每一个证据的关联性都不确定，所以我想把从每一个证据生成的新数据内容都进行训练和梯度下降
+
             def _gate_calc(word_vec_seq, context_vec):
                 word_vec_seq = tf.reshape(word_vec_seq, shape=[word_vec_seq.shape[1], word_vec_seq.shape[2]])
                 context_vec = tf.reshape(context_vec, [-1])
@@ -316,25 +324,31 @@ class gated_evidence_fact_generation(Base_model):
                 align_m  = tf.nn.softmax(align)
                 content_vec = tf.reduce_sum(align_m * word_vec_seq ,0)
                 return gate_v,content_vec
-            def _step(i, out_seqs, context_vec, gate_value,attention_vec_evid):
+            def _step(j, context_vec, gate_value,attention_vec_evid):
                 word_vec_seq = tf.slice(evid_mat[i],0,evid_len[i])
                 gate_v,content_vec =_gate_calc(word_vec_seq, context_vec)
                 gate_value = gate_value.write(i,gate_v)
                 attention_vec_evid = attention_vec_evid.write(i,content_vec)
-                i = tf.add(i, 1)
-                return i, multi_states, out_seqs, context_vec, gate_value,attention_vec_evid
-            _, _, _, gate_value,attention_vec_evid = tf.while_loop(lambda i, *_: i < evid_len[i], _step,
-                                                [i, multi_states, out_seq, context_vec, gate_value,attention_vec_evid],
+                j = tf.add(j, 1)
+                return j, context_vec, gate_value,attention_vec_evid
+
+            _, _, gate_value,attention_vec_evid = tf.while_loop(lambda j, *_: j < evid_len[j], _step,
+                                                [j, context_vec, gate_value,attention_vec_evid],
                                                 name='get_gate_value_loop')
             gate_value = gate_value.stack()
             i = tf.argmax(gate_value)
             i = tf.cast(i, tf.int32)
             sen_vec = multi_states.read(i)
+
             output, state = decoder_cell.apply(state_ta.read(index), run_state)
+
+
+
             # 生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
             mat_mul = map_out_w * output
             _gate_value = _gate_value.write(i,index)
             dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
+
             char_most_pro = tf.argmax(dis_v)
             char_most_pro = tf.cast(char_most_pro, tf.int32)
             if mode == 'train':

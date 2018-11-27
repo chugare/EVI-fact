@@ -174,6 +174,9 @@ def valid_protype(meta):
             'G_RL': 0.0,
         }
         res_list = []
+
+        report_txt = open('rt.txt', 'w', encoding='utf-8')
+
         try:
             while True:
                 try:
@@ -193,10 +196,18 @@ def valid_protype(meta):
                     print('[INFO] 第 %d 个测试例子验证结束  用时: %.2f 共计用时 %.2f 得到生成队列：' % (global_step,time_cost,total_cost))
                     print('TRUE:'+fact_sen)
                     print('GEN:'+out_sen)
+                    report_txt.write('> 正确文本%d\n' % global_step)
+                    report_txt.write('> %s\n> \n' % fact_sen)
+                    report_txt.write('> 生成文本%d\n' % global_step)
+                    report_txt.write('> %s\n\n' % out_sen)
+
                     res_list.append(
                         rouge_v
                     )
                     global_step += 1
+
+                    if global_step == 50:
+                        break
                 except StopIteration:
 
                     report_file = open(meta['name']+'_valid.json','w',encoding='utf-8')
