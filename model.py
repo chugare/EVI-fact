@@ -180,7 +180,7 @@ class gated_evidence_fact_generation(Base_model):
         self.MAX_FACT_LEN = 600
         self.MAX_VOCA_SZIE = 10000
         self.VEC_SIZE = 100
-        self.DECODER_NUM_UNIT = 400
+        self.DECODER_NUM_UNIT = 100
         self.LR = 0.002
         self.OH_ENCODER = False
         self.DECAY_STEP = 5
@@ -332,7 +332,7 @@ class gated_evidence_fact_generation(Base_model):
                 align = tf.reduce_sum(align,1)
                 print(align)
                 align_m = tf.nn.softmax(align)
-                content_vec = tf.reduce_sum(align_m * word_vec_seq ,)
+                content_vec = tf.reduce_sum(align_m * word_vec_seq ,0)
                 return gate_v,content_vec
 
             def _step(j,_step_input):
@@ -351,11 +351,12 @@ class gated_evidence_fact_generation(Base_model):
 
                 if mode == 'train':
                     print(content_vec)
+                    content_vec = tf.reshape(content_vec,[1,-1])
                     decoder_output,decoder_state = decoder_cell.apply(content_vec,run_state)
                     mat_mul = map_out_w * decoder_output
                     dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
                     true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
-                    loss = tf.nn.softmax_cross_entropy_with_logits(dis_v, true_l, name='Cross_entropy')*gate_v
+                    loss = tf.nn.softmax_cross_entropy_with_logits(logits=dis_v, labels=true_l, name='Cross_entropy')*gate_v
                     decoder_state_ta = decoder_state_ta.write(j,decoder_state)
                     loss_res_ta = loss_res_ta.write(j,loss)
 
