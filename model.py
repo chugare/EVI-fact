@@ -290,7 +290,9 @@ class gated_evidence_fact_generation(Base_model):
                                     initializer=tf.truncated_normal_initializer())
         map_out_b = tf.get_variable('map_bias', shape=[self.MAX_VOCA_SZIE], dtype=tf.float32,
                                     initializer=tf.constant_initializer(0))
-        nll = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False)
+        loss_array = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False)
+        loss_index = tf.constant(0)
+
         gate_value = tf.TensorArray(dtype=tf.int32, size=fact_len, clear_after_read=False)
 
         attention_var_gate = tf.get_variable('attention_w', dtype=tf.float32,
@@ -299,6 +301,10 @@ class gated_evidence_fact_generation(Base_model):
 
         attention_var_gen = tf.get_variable('attention_g', dtype=tf.float32,
                                             shape=[ self.VEC_SIZE,self.DECODER_NUM_UNIT * 2])
+
+        e_lr = tf.train.exponential_decay(self.LR, global_step=global_step, decay_steps=self.DECAY_STEP,
+                                          decay_rate=self.DECAY_RATE, staircase=False)
+        adam = tf.train.AdamOptimizer(e_lr)
 
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
 
@@ -321,18 +327,21 @@ class gated_evidence_fact_generation(Base_model):
                 'context_vec':context_vec,
                 'gate_value':gate_value,
                 'attention_vec_evid':attention_vec_evid,
-                'loss_res_ta':loss_res_ta
+                'loss_res_ta':loss_res_ta,
+                # 'loss_index':loss_index,
+                # 'total_loss_ta':total_loss_ta
             }
 
             def _gate_calc(word_vec_seq, context_vec):
                 # word_vec_seq = tf.reshape(word_vec_seq, shape=[word_vec_seq.shape[1], word_vec_seq.shape[2]])
                 context_vec = tf.reshape(context_vec, [-1])
                 gate_v = tf.reduce_mean((tf.matmul(word_vec_seq, attention_var_gate) * context_vec))
+                gate_v = tf.sigmoid(gate_v)
                 align = tf.matmul(word_vec_seq, attention_var_gen) * context_vec
                 align = tf.reduce_sum(align,1)
-                print(align)
+                align = tf.reshape(align,[1,-1])
                 align_m = tf.nn.softmax(align)
-                content_vec = tf.reduce_sum(align_m * word_vec_seq ,0)
+                content_vec = tf.reshape(tf.matmul(align_m ,word_vec_seq) ,[-1])
                 return gate_v,content_vec
 
             def _step(j,_step_input):
@@ -342,12 +351,14 @@ class gated_evidence_fact_generation(Base_model):
                 gate_value = _step_input['gate_value']
                 attention_vec_evid = _step_input['attention_vec_evid']
                 loss_res_ta = _step_input['loss_res_ta']
+                # loss_index = _step_input['loss_index']
+                # total_loss_ta = _step_input['total_loss_ta']
 
-                word_vec_seq = evid_mat[i][0:evid_len[i]]
+                word_vec_seq = evid_mat[j][0:evid_len[j]]
                 gate_v,content_vec =_gate_calc(word_vec_seq, context_vec)
                 gate_value = gate_value.write(i,gate_v)
                 attention_vec_evid = attention_vec_evid.write(i,content_vec)
-                j = tf.add(j, 1)
+
 
                 if mode == 'train':
 
@@ -358,20 +369,22 @@ class gated_evidence_fact_generation(Base_model):
                     true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
                     loss = tf.nn.softmax_cross_entropy_with_logits(logits=dis_v,labels= true_l, name='Cross_entropy')*gate_v
                     decoder_state_ta = decoder_state_ta.write(j,decoder_state)
-                    tf.add_to_collection('GEFG_loss',loss)
                     loss_res_ta = loss_res_ta.write(j,loss)
-
+                    # total_loss_ta = total_loss_ta.write(loss_index)
 
                 _step_output = {
-                     'decoder_state_ta': decoder_state_ta,
-                     'context_vec': context_vec,
-                     'gate_value': gate_value,
-                     'attention_vec_evid': attention_vec_evid,
-                     'loss_res_ta': loss_res_ta
+                    'decoder_state_ta': decoder_state_ta,
+                    'context_vec': context_vec,
+                    'gate_value': gate_value,
+                    'attention_vec_evid': attention_vec_evid,
+                    'loss_res_ta': loss_res_ta,
+                    # 'loss_index':loss_index,
+                    # 'total_loss_ta':total_loss_ta
                 }
+                j = tf.add(j, 1)
                 return j,_step_output
 
-            _, _step_output = tf.while_loop(lambda j, *_: j < evid_len[j], _step,
+            _, _step_output = tf.while_loop(lambda j, *_: j < evid_count, _step,
                                                 [tf.constant(0),_step_input],
                                                 name='get_gate_value_loop')
 
@@ -380,6 +393,8 @@ class gated_evidence_fact_generation(Base_model):
             gate_value = _step_output['gate_value']
             attention_vec_evid = _step_output['attention_vec_evid']
             loss_res_ta = _step_output['loss_res_ta']
+            # loss_index = _step_output['loss_index']
+            # total_loss_ta = _step_output['total_loss_ta']
 
 
             if mode == 'train':
@@ -393,7 +408,7 @@ class gated_evidence_fact_generation(Base_model):
                 # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
                 # loss = tf.nn.softmax_cross_entropy_with_logits(dis_v,true_l,name='Cross_entropy')
                 #
-                nll.write(i, total_loss)
+                nll = nll.write(i, total_loss)
                 # dis_v = tf.nn.softmax(dis_v)
                 # nll = nll.write(i, -tf.log(dis_v[fact_mat[i]]))
             else:
@@ -407,29 +422,29 @@ class gated_evidence_fact_generation(Base_model):
                 decoder_output, run_state = decoder_cell.apply(content_vec, run_state)
                 mat_mul = map_out_w * decoder_output
                 dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
-
                 char_most_pro = tf.argmax(dis_v)
                 char_most_pro = tf.cast(char_most_pro, tf.int32)
-                _state_seq = _state_seq.write(i, run_state)
                 generated_seq = generated_seq.write(i, char_most_pro)
             # 生成context向量
-
+            _state_seq = _state_seq.write(i, run_state)
             i = tf.add(i, 1)
 
-            return i, _state_seq, generated_seq, run_state, _gate_value, nll
+            return i, _state_seq, generated_seq, run_state, _gate_value,nll
 
         _, state_seq, output_seq, run_state, gate_value, nll = tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
-                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value, nll],
+                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value,loss_array],
                                                                  name='generate_word_loop')
         nll = nll.stack()
         gate_value = gate_value.stack()
         nll = tf.reduce_mean(nll)
-        # tf.summary.histogram('NLL', nll)
-        # merge = tf.summary.merge_all()
+        tf.summary.histogram('NLL', nll)
+        merge = tf.summary.merge_all()
         state_seq = state_seq.stack()
-        output_seq = output_seq.stack()
-        e_lr = tf.train.exponential_decay(self.LR,global_step=global_step,decay_steps=self.DECAY_STEP,decay_rate=self.DECAY_RATE,staircase=False)
-        adam = tf.train.AdamOptimizer(e_lr)
+        if mode=='train':
+            output_seq = tf.constant(0)
+        else:
+            output_seq = output_seq.stack()
+
         t_op = adam.minimize(nll)
 
         op = {
@@ -442,7 +457,7 @@ class gated_evidence_fact_generation(Base_model):
             'state_seq': state_seq,
             'output_seq': output_seq,
             'nll': nll,
-            # 'merge': merge,
+            'merge': merge,
             'gate_value':gate_value,
             'train_op':t_op
 
