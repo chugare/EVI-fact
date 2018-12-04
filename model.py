@@ -334,6 +334,7 @@ class gated_evidence_fact_generation(Base_model):
 
             def _gate_calc(word_vec_seq, context_vec):
                 # word_vec_seq = tf.reshape(word_vec_seq, shape=[word_vec_seq.shape[1], word_vec_seq.shape[2]])
+
                 context_vec = tf.reshape(context_vec, [-1])
                 gate_v = tf.reduce_mean((tf.matmul(word_vec_seq, attention_var_gate) * context_vec))
                 gate_v = tf.sigmoid(gate_v)
@@ -361,13 +362,14 @@ class gated_evidence_fact_generation(Base_model):
 
 
                 if mode == 'train':
-
                     content_vec = tf.reshape(content_vec,[1,-1])
                     decoder_output,decoder_state = decoder_cell.apply(content_vec,run_state)
                     mat_mul = map_out_w * decoder_output
                     dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
-                    true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
-                    loss = tf.nn.softmax_cross_entropy_with_logits(logits=dis_v,labels= true_l, name='Cross_entropy')*gate_v
+
+                    with tf.device('/cpu'):
+                        true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
+                    loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=dis_v,labels= true_l, name='Cross_entropy')*gate_v
                     decoder_state_ta = decoder_state_ta.write(j,decoder_state)
                     loss_res_ta = loss_res_ta.write(j,loss)
                     # total_loss_ta = total_loss_ta.write(loss_index)
@@ -383,7 +385,6 @@ class gated_evidence_fact_generation(Base_model):
                 }
                 j = tf.add(j, 1)
                 return j,_step_output
-
             _, _step_output = tf.while_loop(lambda j, *_: j < evid_count, _step,
                                                 [tf.constant(0),_step_input],
                                                 name='get_gate_value_loop')

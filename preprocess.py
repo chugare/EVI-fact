@@ -280,7 +280,12 @@ class Preprocessor:
                     if i<len(evids):
                         evid_oh = self.Nencoder(evids[i])
                         tmp_vec = np.array(evid_oh)
-                        padded_vec = np.concatenate((tmp_vec,np.zeros([mel-len(tmp_vec)])))
+                        try:
+                            padded_vec = np.concatenate((tmp_vec,np.zeros([mel-len(tmp_vec)])))
+                        except ValueError:
+                            print("v error evid:")
+                            print(len(tmp_vec))
+                            continue
                         evid_vecs.append(padded_vec)
                         evid_lens.append(len(evid_oh))
                     else:
@@ -289,7 +294,13 @@ class Preprocessor:
 
                 fact_vec = self.Nencoder(fact)
                 fact_len = len(fact_vec)
-                fact_vec = np.concatenate([fact_vec,np.zeros([mfl-len(fact_vec)],dtype=np.int32)])
+
+                try:
+                    fact_vec = np.concatenate([fact_vec,np.zeros([mfl-len(fact_vec)],dtype=np.int32)])
+                except ValueError:
+                    print("v error fact:")
+                    print(fact_len)
+                    continue
                 yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,fact_len
 
         else:

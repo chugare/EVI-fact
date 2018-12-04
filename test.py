@@ -9,12 +9,25 @@ import tensorflow as tf
 import numpy as np
 import json
 import re
+import preprocess as PP
+import model
+np = PP.Preprocessor(False)
+GEFG = model.gated_evidence_fact_generation()
+dg = np.data_provider('train_data.json',{
+        'NAME':'GEFG',
+        'MEL':GEFG.MAX_EVID_LEN,
+        'MEC':GEFG.MAX_EVIDS,
+        'MFL':GEFG.MAX_FACT_LEN,
+        'BATCH_SIZE':1
+    })
+c = 0
+for i in dg:
+    # print(c)
+    # print(i[2])
+    # print(i[4])
+    # print('-------')
+    c += 1
 
-t = [i for i in range(10)]
-for i in range(20,30):
-    t.append(i)
-    t = t[1:]
-    print(t)
 
 
 def t1():
