@@ -168,9 +168,9 @@ def sent_format(sentence):
     return sentence
 
 def data_format():
-    max_len_evid = 800
+    max_len_evid = 800-2
     min_len_evid = 10
-    max_len_fact = 600
+    max_len_fact = 600-2
     min_len_fact = 10
     max_count_evid = 50
 
@@ -226,5 +226,4 @@ if __name__ == '__main__':
     data_format()
         # if len(i['fact'])<40:
         #     print('%d :"%s"'%(len(i['fact']),i['fact']))
-    data_format()
     seperate_data_set()
