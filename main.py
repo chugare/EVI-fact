@@ -366,6 +366,21 @@ ABS_meta={
     }
 
 }
+GEFG_VALID_meta={
+    'name':'GEFG',
+    'seg_by_word': False,
+    'eval_data':'test_data.json',
+    'checkpoint_dir':'checkpoint_GEFG',
+    'summary_dir':'summary_GEFG',
+    'model':model.gated_evidence_fact_generation,
+    'data_meta':{
+        'NAME':'GEFG',
+        'MEL':GEFG.MAX_EVID_LEN,
+        'MEC':GEFG.MAX_EVIDS,
+        'MFL':GEFG.MAX_FACT_LEN,
+        'BATCH_SIZE':1
+    }
+}
 ABS_VALID_meta ={
     'name':'ABS_VALID',
     'eval_data':'test_data.json',
@@ -381,4 +396,5 @@ ABS_VALID_meta ={
     }
 }
 #valid_protype(meta=ABS_VALID_meta)
-train_protype(meta= GEFG_meta)
+valid_protype(meta=GEFG_VALID_meta)
+#train_protype(meta= GEFG_meta)

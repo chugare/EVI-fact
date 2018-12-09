@@ -308,20 +308,18 @@ class gated_evidence_fact_generation(Base_model):
 
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
 
-
-
-
             context_vec = tf.cond(tf.equal(i, 0),
                                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT * 2]),
                                   lambda: _state_seq.read(tf.subtract(i, 1)))
             # 计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验
+
             gate_value = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
             attention_vec_evid = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
             decoder_state_ta = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
             loss_res_ta = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False)
 
-
             # 在训练的时候，由于每一个证据的关联性都不确定，所以我想把从每一个证据生成的新数据内容都进行训练和梯度下降
+
             _step_input = {
                 'decoder_state_ta':decoder_state_ta,
                 'context_vec':context_vec,
@@ -482,6 +480,24 @@ class gated_evidence_fact_generation(Base_model):
             'loss':nll,
             'merge':merge
         }
+    def inter_fun(self,sess,data_gen,ops):
+        evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
+        state_seq, output_seq, gate_value, merge= sess.run(
+            [ops['state_seq'], ops['output_seq'], ops['gate_value'], ops['merge']],
+            feed_dict={ops['evid_mat']: evid_mat,
+                       ops['evid_len']: evid_len,
+                       ops['evid_count']: evid_count,
+                       ops['global_step']:global_step}
+        )
+        fact_vec = []
+        for i in range(fact_len):
+            fact_vec.append(fact_mat[i])
+
+        return {
+            'out_seq':output_seq,
+            'fact_seq':fact_vec,
+        }
+
 
 
 class gated_evidence_fact_generation_0(Base_model):
