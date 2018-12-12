@@ -69,8 +69,10 @@ def train_protype(meta):
     # 训练过程
     saver = tf.train.Saver()
     config = tf.ConfigProto(
-        log_device_placement=True
+        # log_device_placement=True
+
     )
+    config.gpu_options.allow_growth = True
     with tf.Session(config=config) as sess:
         # 训练配置，包括参数初始化以及读取检查点
         init = tf.global_variables_initializer()

@@ -21,15 +21,17 @@ dg = np.data_provider('train_data.json',{
         'BATCH_SIZE':1
     })
 c = 0
-for i in dg:
-    # print(c)
-    # print(i[2])
-    # print(i[4])
-    # print('-------')
-    c += 1
 
-
-
+with tf.Session() as sess:
+    ta =  tf.TensorArray(dtype=tf.float32,size = 5)
+    i = tf.constant(0)
+    a = tf.constant(1)
+    ta.write(i,a)
+    i = i +1
+    ta.write(i,a)
+    ta = ta.stack()
+    vout = sess.run(ta)
+    print(vout)
 def t1():
     with tf.Session() as sess:
         seql = range(5)
@@ -73,3 +75,4 @@ def t1():
         i,r = sess.run([loop,ta_t],feed_dict={evid_mat:mat_data,evid_len:length,evid_count:4})
         print(i)
         print(r)
+
