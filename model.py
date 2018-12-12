@@ -367,7 +367,7 @@ class gated_evidence_fact_generation(Base_model):
 
                     with tf.device('/cpu'):
                         true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
-                    loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=dis_v,labels= true_l, name='Cross_entropy')*gate_v
+                    loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=dis_v,labels= true_l, name='Cross_entropy')
                     decoder_state_ta = decoder_state_ta.write(j,decoder_state)
                     loss_res_ta = loss_res_ta.write(j,loss)
                     # total_loss_ta = total_loss_ta.write(loss_index)
@@ -398,11 +398,16 @@ class gated_evidence_fact_generation(Base_model):
 
             if mode == 'train':
             # 11/06 更改损失函数变为交叉熵
+
                 total_loss = loss_res_ta.stack()
+
+                tl_sf = tf.nn.softmax(tf.reciprocal(total_loss))
+                gate_value = gate_value.stack()
+                loss_g = tf.nn.softmax_cross_entropy_with_logits_v2(logits=gate_value,labels=tl_sf)
                 next_state_i = tf.cast(tf.argmax(total_loss),tf.int32)
                 run_state = decoder_state_ta.read(next_state_i)
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0],run_state[1])
-                total_loss = tf.reduce_mean(total_loss)
+                total_loss = tf.reduce_mean(total_loss)+loss_g
                 # 11/27 更改损失计算方式为从每一个证据生成进行计算
                 # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
                 # loss = tf.nn.softmax_cross_entropy_with_logits(dis_v,true_l,name='Cross_entropy')
