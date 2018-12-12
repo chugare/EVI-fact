@@ -369,17 +369,18 @@ class gated_evidence_fact_generation(Base_model):
             # 11/06 更改损失函数变为交叉熵
 
                 total_loss = loss_res_ta.stack()
-                print(total_loss)
+
 
                 tl_sf = tf.nn.softmax(tf.reciprocal(total_loss))
                 gate_value = gate_value.stack()
                 loss_g = tf.nn.softmax_cross_entropy_with_logits_v2(logits=gate_value,labels=tl_sf)
-                next_state_i = tf.cast(tf.argmax(total_loss),tf.int32)
+                next_state_i = tf.cast(tf.argmin(total_loss),tf.int32)
                 run_state = decoder_state_ta.read(next_state_i)
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0],run_state[1])
                 ec = tf.cast(evid_count,dtype=tf.float32)
-                total_loss = tf.reduce_sum(total_loss)/ec +loss_g
+                total_loss = tf.reduce_min(total_loss)/ec +loss_g
                 # 11/27 更改损失计算方式为从每一个证据生成进行计算
+                # 12/12 更改损失计算方式为使用最低loss证据产生的loss计算
                 # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
                 # loss = tf.nn.softmax_cross_entropy_with_logits(dis_v,true_l,name='Cross_entropy')
                 #
