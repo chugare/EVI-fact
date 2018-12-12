@@ -324,8 +324,8 @@ class gated_evidence_fact_generation(Base_model):
 
                 word_vec_seq = evid_mat[j][0:evid_len[j]]
                 gate_v,content_vec =_gate_calc(word_vec_seq, context_vec)
-                gate_value = gate_value.write(i,gate_v)
-                attention_vec_evid = attention_vec_evid.write(i,content_vec)
+                gate_value = gate_value.write(j,gate_v)
+                attention_vec_evid = attention_vec_evid.write(j,content_vec)
 
 
                 if mode == 'train':
