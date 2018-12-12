@@ -147,7 +147,7 @@ def valid_protype(meta):
     saver = tf.train.Saver()
     config = tf.ConfigProto(
         # log_device_placement=True
-        report_tensor_allocations_upon_oom=True
+        # report_tensor_allocations_upon_oom=True
     )
     with tf.Session(config=config) as sess:
         # 配置，包括参数初始化以及读取检查点
