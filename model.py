@@ -440,7 +440,7 @@ class gated_evidence_fact_generation(Base_model):
             nll = nll.stack()
             fl = tf.cast(fact_len,dtype=tf.float32)
             nll = tf.reduce_sum(nll)/fl
-            tf.summary.histogram('NLL', nll)
+            tf.summary.scalar('NLL', nll)
             grads = adam.compute_gradients(nll)
 
             for var in tf.trainable_variables():
