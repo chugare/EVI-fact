@@ -101,14 +101,17 @@ def train_protype(meta):
 
                         loss = train_res['loss']
                         merge = train_res['merge']
-
+                        if 'acc' in train_res:
+                            acc = train_res['acc']
+                        else:
+                            acc = 0
                         cur_time =time.time()
                         time_cost = cur_time-last_time
                         total_cost = cur_time-start_time
-                        if global_step % 400 == 0:
+                        if global_step % 10 == 0:
                             train_writer.add_summary(merge,global_step/10)
                             logger.write_log([global_step/10,loss,total_cost])
-                        print('[INFO] Batch %d 训练结果：LOSS=%.6f  用时: %.2f 共计用时 %.2f' % (batch_count, loss ,time_cost,total_cost))
+                        print('[INFO] Batch %d 训练结果：LOSS=%.2f ACCURACY:%.2f 用时: %.2f 共计用时 %.2f' % (batch_count, loss,acc,time_cost,total_cost))
 
                         # print('[INFO] Batch %d'%batch_count)
                         # matplotlib 实现可视化loss
