@@ -171,7 +171,7 @@ def data_format():
     max_len_evid = 800-2
     min_len_evid = 10
     max_len_fact = 600-2
-    min_len_fact = 10
+    min_len_fact = 40
     max_count_evid = 50
 
     res_file = open('FORMAT_data.json','w',encoding='utf-8')
