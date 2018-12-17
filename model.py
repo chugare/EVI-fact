@@ -309,7 +309,7 @@ class gated_evidence_fact_generation(Base_model):
 
                 context_vec = tf.reshape(context_vec, [-1])
                 gate_v = tf.reduce_mean((tf.matmul(word_vec_seq, attention_var_gate) * context_vec))
-                gate_v = tf.relu(gate_v)
+                gate_v = tf.nn.relu(gate_v)
                 align = tf.matmul(word_vec_seq, attention_var_gen) * context_vec
                 align = tf.reduce_sum(align, 1)
                 align = tf.reshape(align, [1, -1])
@@ -391,8 +391,8 @@ class gated_evidence_fact_generation(Base_model):
                 next_state_i = tf.cast(tf.argmin(total_loss),tf.int32)
                 run_state = decoder_state_ta.read(next_state_i)
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0],run_state[1])
-                ec = tf.cast(evid_count,dtype=tf.float32)
-                total_loss = tf.reduce_min(total_loss)/ec +loss_g
+                # ec = tf.cast(evid_count,dtype=tf.float32)
+                total_loss = tf.reduce_min(total_loss)+loss_g
                 # 11/27 更改损失计算方式为从每一个证据生成进行计算
                 # 12/12 更改损失计算方式为使用最低loss证据产生的loss计算
                 # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
@@ -433,7 +433,7 @@ class gated_evidence_fact_generation(Base_model):
 
         if mode=='train':
             output_seq = output_seq.stack()
-
+            tf.summary.histogram('OUT_PUT',output_seq)
             tc = tf.equal(output_seq,fact_mat)[:fact_len]
             accuracy = tf.reduce_sum(tf.cast(tc,tf.float32))/tf.cast(fact_len,tf.float32)
             tf.summary.scalar('PRECISION',accuracy)
@@ -447,8 +447,8 @@ class gated_evidence_fact_generation(Base_model):
                 tf.summary.histogram(var.name, var)
             # 使用直方图记录梯度
             for i,(grad, var) in enumerate(grads):
-                if g is not None:
-                    grads[i] = (tf.clip_by_norm(grad,5),v)
+                if grad is not None:
+                    grads[i] = (tf.clip_by_norm(grad,5),var)
                 tf.summary.histogram(var.name + '/gradient', grad)
 
             t_op = adam.apply_gradients(grads)
