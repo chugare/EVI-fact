@@ -309,13 +309,13 @@ class gated_evidence_fact_generation(Base_model):
 
                 context_vec = tf.reshape(context_vec, [-1])
                 gate_v = tf.reduce_mean((tf.matmul(word_vec_seq, attention_var_gate) * context_vec))
-                gate_v = tf.sigmoid(gate_v)
+                gate_v = tf.relu(gate_v)
                 align = tf.matmul(word_vec_seq, attention_var_gen) * context_vec
-                align = tf.reduce_sum(align,1)
-                align = tf.reshape(align,[1,-1])
+                align = tf.reduce_sum(align, 1)
+                align = tf.reshape(align, [1, -1])
                 align_m = tf.nn.softmax(align)
-                content_vec = tf.reshape(tf.matmul(align_m ,word_vec_seq) ,[-1])
-                return gate_v,content_vec
+                content_vec = tf.reshape(tf.matmul(align_m, word_vec_seq), [-1])
+                return gate_v, content_vec
 
             def _step(j,_step_input):
 
@@ -446,10 +446,12 @@ class gated_evidence_fact_generation(Base_model):
             for var in tf.trainable_variables():
                 tf.summary.histogram(var.name, var)
             # 使用直方图记录梯度
-            for grad, var in grads:
+            for i,(grad, var) in enumerate(grads):
+                if g is not None:
+                    grads[i] = (tf.clip_by_norm(grad,5),v)
                 tf.summary.histogram(var.name + '/gradient', grad)
 
-            t_op = adam.minimize(nll)
+            t_op = adam.apply_gradients(grads)
         else:
             output_seq = output_seq.stack()
             t_op = tf.no_op()
@@ -501,6 +503,7 @@ class gated_evidence_fact_generation(Base_model):
         fact_vec = []
         for i in range(fact_len):
             fact_vec.append(fact_mat[i])
+
 
         return {
             'out_seq':output_seq,

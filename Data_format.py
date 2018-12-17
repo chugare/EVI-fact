@@ -169,7 +169,7 @@ def sent_format(sentence):
 
 def data_format():
     max_len_evid = 800-2
-    min_len_evid = 10
+    min_len_evid = 20
     max_len_fact = 600-2
     min_len_fact = 40
     max_count_evid = 50
@@ -204,8 +204,13 @@ def data_format():
                 continue
         dataset.append({'fact':fact,'evid':evids})
 
-    for i in count:
-        print(i)
+    print('因事实过大被丢弃数量：%d'%count[0])
+    print('因事实过小被丢弃数量：%d'%count[3])
+    print('因证据过大被丢弃数量：%d'%count[2])
+    print('因证据过多被丢弃数量：%d'%count[1])
+    print('剩余样例数量：%d'%len(dataset))
+
+
     json.dump(dataset,res_file, ensure_ascii=False, indent=2)
 
 def seperate_data_set():
