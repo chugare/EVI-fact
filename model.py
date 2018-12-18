@@ -268,12 +268,13 @@ class gated_evidence_fact_generation(Base_model):
 
         attention_var_gate = tf.get_variable('attention_w', dtype=tf.float32,
                                              shape=[self.VEC_SIZE, self.DECODER_NUM_UNIT * 2],
-                                             initializer=tf.truncated_normal_initializer())
+                                             initializer=tf.glorot_normal_initializer())
 
         attention_var_gen = tf.get_variable('attention_g', dtype=tf.float32,
-                                            shape=[ self.VEC_SIZE,self.DECODER_NUM_UNIT * 2])
+                                            shape=[ self.VEC_SIZE,self.DECODER_NUM_UNIT * 2],
+                                            initializer=tf.glorot_normal_initializer())
 
-
+        # tf.summary.histogram('FACT',fact_mat)
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
 
             context_vec = tf.cond(tf.equal(i, 0),
@@ -315,6 +316,7 @@ class gated_evidence_fact_generation(Base_model):
                 align = tf.reshape(align, [1, -1])
                 align_m = tf.nn.softmax(align)
                 content_vec = tf.reshape(tf.matmul(align_m, word_vec_seq), [-1])
+                content_vec = tf.nn.l2_normalize(content_vec)
                 return gate_v, content_vec
 
             def _step(j,_step_input):
@@ -341,11 +343,12 @@ class gated_evidence_fact_generation(Base_model):
                     dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
                     dis_v = tf.nn.relu(dis_v)
 
-                    char_most_pro = tf.cast(tf.argmax(dis_v),tf.int32)
 
                     with tf.device('/cpu'):
                         true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
                     loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=dis_v,labels= true_l, name='Cross_entropy')
+                    char_most_pro = tf.cast(tf.argmax(dis_v), tf.int32)
+                    # char_most_pro = tf.cast(fact_mat[i],tf.int32)
                     decoder_state_ta = decoder_state_ta.write(j,decoder_state)
                     loss_res_ta = loss_res_ta.write(j,loss)
                     char_most_pro_ta = char_most_pro_ta.write(j,char_most_pro)
@@ -372,7 +375,7 @@ class gated_evidence_fact_generation(Base_model):
             gate_value = _step_output['gate_value']
             attention_vec_evid = _step_output['attention_vec_evid']
             loss_res_ta = _step_output['loss_res_ta']
-            char_most_pro_ta = _step_input['char_most_pro_ta']
+            char_most_pro_ta = _step_output['char_most_pro_ta']
             # loss_index = _step_output['loss_index']
             # total_loss_ta = _step_output['total_loss_ta']
 
@@ -447,8 +450,9 @@ class gated_evidence_fact_generation(Base_model):
                 tf.summary.histogram(var.name, var)
             # 使用直方图记录梯度
             for i,(grad, var) in enumerate(grads):
-                if grad is not None:
-                    grads[i] = (tf.clip_by_norm(grad,5),var)
+                # if grad is not None:
+                #     grads[i] = (tf.clip_by_norm(grad,5),var)
+                # tf.summary.histogram(var.name + '/gradient', grads[i])
                 tf.summary.histogram(var.name + '/gradient', grad)
 
             t_op = adam.apply_gradients(grads)
