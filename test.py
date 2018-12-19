@@ -21,17 +21,9 @@ dg = np.data_provider('train_data.json',{
         'BATCH_SIZE':1
     })
 c = 0
-
-with tf.Session() as sess:
-    ta =  tf.TensorArray(dtype=tf.float32,size = 5)
-    i = tf.constant(0)
-    a = tf.constant(1)
-    ta.write(i,a)
-    i = i +1
-    ta.write(i,a)
-    ta = ta.stack()
-    vout = sess.run(ta)
-    print(vout)
+dic ={}
+for i in dg:
+    fact = dg[]
 def t1():
     with tf.Session() as sess:
         seql = range(5)
