@@ -211,8 +211,6 @@ def valid_protype(meta):
                     )
                     global_step += 1
 
-                    if global_step == 50:
-                        break
                 except StopIteration:
 
                     report_file = open(meta['name']+'_valid.json','w',encoding='utf-8')

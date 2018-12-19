@@ -310,7 +310,7 @@ class gated_evidence_fact_generation(Base_model):
 
                 context_vec = tf.reshape(context_vec, [-1])
                 gate_v = tf.reduce_mean((tf.matmul(word_vec_seq, attention_var_gate) * context_vec))
-                gate_v = tf.nn.relu(gate_v)
+                # gate_v = tf.nn.relu(gate_v)
                 align = tf.matmul(word_vec_seq, attention_var_gen) * context_vec
                 align = tf.reduce_sum(align, 1)
                 align = tf.reshape(align, [1, -1])
@@ -341,7 +341,6 @@ class gated_evidence_fact_generation(Base_model):
                     decoder_output,decoder_state = decoder_cell.apply(content_vec,run_state)
                     mat_mul = map_out_w * decoder_output
                     dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
-                    dis_v = tf.nn.relu(dis_v)
 
 
                     with tf.device('/cpu'):
@@ -395,7 +394,7 @@ class gated_evidence_fact_generation(Base_model):
                 run_state = decoder_state_ta.read(next_state_i)
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0],run_state[1])
                 # ec = tf.cast(evid_count,dtype=tf.float32)
-                total_loss = tf.reduce_min(total_loss)+loss_g
+                total_loss = tf.reduce_min(total_loss)
                 # 11/27 更改损失计算方式为从每一个证据生成进行计算
                 # 12/12 更改损失计算方式为使用最低loss证据产生的loss计算
                 # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
@@ -450,15 +449,16 @@ class gated_evidence_fact_generation(Base_model):
                 tf.summary.histogram(var.name, var)
             # 使用直方图记录梯度
             for i,(grad, var) in enumerate(grads):
-                # if grad is not None:
+                if grad is not None:
                 #     grads[i] = (tf.clip_by_norm(grad,5),var)
                 # tf.summary.histogram(var.name + '/gradient', grads[i])
-                tf.summary.histogram(var.name + '/gradient', grad)
+                    tf.summary.histogram(var.name + '/gradient', grad)
 
             t_op = adam.apply_gradients(grads)
         else:
             output_seq = output_seq.stack()
             t_op = tf.no_op()
+            accuracy = tf.no_op()
         merge = tf.summary.merge_all()
         op = {
             'evid_mat': evid_mat_r,
