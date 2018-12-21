@@ -259,7 +259,7 @@ class gated_evidence_fact_generation(Base_model):
         map_out_b = tf.get_variable('map_bias', shape=[self.MAX_VOCA_SZIE], dtype=tf.float32,
                                     initializer=tf.constant_initializer(0))
         gate_fc_w = tf.get_variable('gate',shape=[self.DECODER_NUM_UNIT],dtype=tf.float32,
-                                    initializer=tf.global_variables_initializer())
+                                    initializer=tf.glorot_normal_initializer())
         loss_array = tf.TensorArray(dtype=tf.float32, size=self.MAX_FACT_LEN, clear_after_read=False,name='LOSS_COLLECTION',tensor_array_name='LOSS_TA')
         e_lr = tf.train.exponential_decay(self.LR, global_step=global_step, decay_steps=self.DECAY_STEP,
                                           decay_rate=self.DECAY_RATE, staircase=False)
@@ -275,7 +275,7 @@ class gated_evidence_fact_generation(Base_model):
                                             shape=[ self.VEC_SIZE,self.DECODER_NUM_UNIT * 2],
                                             initializer=tf.glorot_normal_initializer())
 
-        # tf.summary.histogram('FACT',fact_mat)
+        tf.summary.histogram('FACT',fact_mat)
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
 
             context_vec = tf.cond(tf.equal(i, 0),
@@ -312,10 +312,11 @@ class gated_evidence_fact_generation(Base_model):
 
                 context_vec = tf.reshape(context_vec, [-1])
                 gate_v = tf.matmul(word_vec_seq, attention_var_gate) * context_vec
-                gate_m = tf.nn.softmax(gate_v)
+
+                gate_m = tf.reduce_sum(gate_v,1)
+                gate_m = tf.nn.softmax(gate_m)
                 gate_m = tf.reshape(gate_m,[1,-1])
-                gate_v = tf.matmul(gate_m,word_vec_seq)
-                gate_v = tf.reshape(gate_v,[-1])
+                gate_v = tf.reshape(tf.matmul(gate_m, word_vec_seq),[-1])
                 gate_v = tf.nn.l2_normalize(gate_v)
                 gate_v = tf.reduce_sum(gate_v*gate_fc_w)
 
@@ -402,7 +403,7 @@ class gated_evidence_fact_generation(Base_model):
                 run_state = decoder_state_ta.read(next_state_i)
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0],run_state[1])
                 # ec = tf.cast(evid_count,dtype=tf.float32)
-                total_loss = loss_res_ta.read(next_state_i)
+                total_loss = loss_res_ta.read(next_state_i)+loss_g
                 # 11/27 更改损失计算方式为从每一个证据生成进行计算
                 # 12/12 更改损失计算方式为使用最低loss证据产生的loss计算
                 # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
