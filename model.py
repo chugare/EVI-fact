@@ -318,7 +318,7 @@ class gated_evidence_fact_generation(Base_model):
                 gate_m = tf.reshape(gate_m,[1,-1])
                 gate_v = tf.reshape(tf.matmul(gate_m, word_vec_seq),[-1])
                 gate_v = tf.nn.l2_normalize(gate_v)
-                gate_v = tf.reduce_sum(gate_v*gate_fc_w)
+                gate_v = tf.reduce_mean(gate_v*gate_fc_w)
 
                 align = tf.matmul(word_vec_seq, attention_var_gen) * context_vec
                 align = tf.reduce_sum(align, 1)
@@ -347,7 +347,7 @@ class gated_evidence_fact_generation(Base_model):
 
                 if mode == 'train':
                     content_vec = tf.reshape(content_vec,[1,-1])
-                    decoder_output,decoder_state = decoder_cell.apply(content_vec,run_state)
+                    decoder_output,decoder_state = decoder_cell(content_vec,run_state)
                     mat_mul = map_out_w * decoder_output
                     dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
 
@@ -423,7 +423,7 @@ class gated_evidence_fact_generation(Base_model):
                 content_vec = attention_vec_evid.read(gate_index)
                 content_vec = tf.reshape(content_vec, [1, -1])
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0], run_state[1])
-                decoder_output, run_state = decoder_cell.apply(content_vec, run_state)
+                decoder_output, run_state = decoder_cell(content_vec, run_state)
                 mat_mul = map_out_w * decoder_output
                 dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
                 char_most_pro = tf.argmax(dis_v)
