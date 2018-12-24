@@ -108,8 +108,15 @@ class gated_evidence_fact_generation(Base_model):
 
             # 计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验
 
-            # context_vec = tf.reshape(context_vec,[-1,1])
-            # gate_value_after_attention = tf.matmul(evid_mat,tf.matmul(attention_var_gate,context_vec))
+            context_vec = tf.reshape(context_vec,[-1,1])
+            wc = tf.matmul(attention_var_gate,context_vec)
+            wc = tf.reshape(wc,[])
+            gate_value_after_attention = tf.tensordot(evid_mat,wc,2)
+            gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,1,-1])
+            gate_value_after_attention = tf.matmul(gate_value_after_attention,evid_mat)
+            gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,-1])
+
+
 
 
             gate_value = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False,

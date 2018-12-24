@@ -20,10 +20,21 @@ dg = np.data_provider('train_data.json',{
         'MFL':GEFG.MAX_FACT_LEN,
         'BATCH_SIZE':1
     })
-c = 0
+
 dic ={}
+log = open('word_count.txt','w')
 for i in dg:
-    fact = dg[]
+    fact = i[3]
+    l = i[4]
+    for j in range(l):
+        c = fact[j]
+        if c not in dic:
+            dic[c] = 0
+        dic[c] += 1
+for c in dic:
+    log.write("%d\t%d\n"%(c,dic[c]))
+
+
 def t1():
     with tf.Session() as sess:
         seql = range(5)

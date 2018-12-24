@@ -136,4 +136,7 @@ def sentence_simplified_process(str):
     return str
 
 
+def vector_histogram():
+
+
 
