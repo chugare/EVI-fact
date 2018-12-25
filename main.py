@@ -132,6 +132,7 @@ def train_protype(meta):
             except KeyboardInterrupt:
                 print("[INFO] 强行停止训练，开始保存模型")
                 saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
+                break
 
 def valid_protype(meta):
     # 设置训练配置内容
