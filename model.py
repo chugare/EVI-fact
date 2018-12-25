@@ -100,7 +100,7 @@ class gated_evidence_fact_generation(Base_model):
         tf.summary.histogram('FACT',fact_mat)
         distribute_ta = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False,
                                         name='DIS_MAT',tensor_array_name='DIS_MAT_TA')
-        def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll,dis_v_ta):
+        def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
 
             context_vec = tf.cond(tf.equal(i, 0),
                                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT * 2]),
@@ -240,15 +240,10 @@ class gated_evidence_fact_generation(Base_model):
                                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.VEC_SIZE]),
                                   lambda: fact_mat_emb[i-1])
 
-                content_vec = tf.concat(values = [content_vec,last_word_vec],axis=0)
-                content_vec = tf.reshape(content_vec,[1,-1])
-                decoder_output, run_state = decoder_cell(content_vec, run_state)
-                dis_v = tf.add(tf.reduce_sum(map_out_w * decoder_output, 1), map_out_b)
-                dis_v_ta = dis_v_ta.write(i,content_vec)
-                # run_state = decoder_state_ta.read(next_state_i)
+                run_state = decoder_state_ta.read(next_state_i)
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0],run_state[1])
                 # ec = tf.cast(evid_count,dtype=tf.float32)
-                total_loss = loss_res_ta.read(next_state_i)
+                total_loss = loss_res_ta.read(next_state_i)+loss_g
                 # 11/27 更改损失计算方式为从每一个证据生成进行计算
                 # 12/12 更改损失计算方式为使用最低loss证据产生的loss计算
                 # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
@@ -279,10 +274,10 @@ class gated_evidence_fact_generation(Base_model):
             _state_seq = _state_seq.write(i, run_state)
             i = tf.add(i, 1)
 
-            return i, _state_seq, generated_seq, run_state, _gate_value,nll,dis_v_ta
+            return i, _state_seq, generated_seq, run_state, _gate_value,nll
 
-        _, state_seq, output_seq, run_state, gate_value, nll,distribute_ta= tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
-                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value,loss_array,distribute_ta],
+        _, state_seq, output_seq, run_state, gate_value, nll= tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
+                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value,loss_array],
                                                                  name='generate_word_loop')
 
         gate_value = gate_value.stack()
@@ -299,8 +294,8 @@ class gated_evidence_fact_generation(Base_model):
             fl = tf.cast(fact_len,dtype=tf.float32)
             nll = tf.reduce_sum(nll)/fl
             tf.summary.scalar('NLL', nll)
-            dis_v = distribute_ta.stack()
-            tf.summary.histogram("DIS_V",dis_v[:fact_len])
+            # dis_v = distribute_ta.stack()
+            # tf.summary.histogram("DIS_V",dis_v[:fact_len])
             grads = adam.compute_gradients(nll)
 
             for var in tf.trainable_variables():
@@ -331,16 +326,15 @@ class gated_evidence_fact_generation(Base_model):
             'accuracy':accuracy,
             'merge': merge,
             'gate_value':gate_value,
-            'train_op':t_op,
-            "dis_v":dis_v
+            'train_op':t_op
         }
 
         return op
 
     def train_fun(self,sess,data_gen,ops,global_step):
         evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
-        state_seq, output_seq, nll,acc, merge, _ ,dis_v= sess.run(
-            [ops['state_seq'], ops['output_seq'], ops['nll'],ops['accuracy'], ops['merge'], ops['train_op'],ops["dis_v"]],
+        state_seq, output_seq, nll,acc, merge, _ = sess.run(
+            [ops['state_seq'], ops['output_seq'], ops['nll'],ops['accuracy'], ops['merge'], ops['train_op']],
             feed_dict={ops['evid_mat']: evid_mat,
                        ops['evid_len']: evid_len,
                        ops['evid_count']: evid_count,
