@@ -108,13 +108,13 @@ class gated_evidence_fact_generation(Base_model):
 
             # 计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验
 
-            context_vec = tf.reshape(context_vec,[-1,1])
-            wc = tf.matmul(attention_var_gate,context_vec)
-            wc = tf.reshape(wc,[])
-            gate_value_after_attention = tf.tensordot(evid_mat,wc,2)
-            gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,1,-1])
-            gate_value_after_attention = tf.matmul(gate_value_after_attention,evid_mat)
-            gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,-1])
+            # context_vec = tf.reshape(context_vec,[-1,1])
+            # wc = tf.matmul(attention_var_gate,context_vec)
+            # wc = tf.reshape(wc,[])
+            # gate_value_after_attention = tf.tensordot(evid_mat,wc,2)
+            # gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,1,-1])
+            # gate_value_after_attention = tf.matmul(gate_value_after_attention,evid_mat)
+            # gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,-1])
 
 
 
@@ -191,7 +191,6 @@ class gated_evidence_fact_generation(Base_model):
                     content_vec = tf.reshape(content_vec, [1, -1])
                     decoder_output,decoder_state = decoder_cell(content_vec,run_state)
                     mat_mul = map_out_w * decoder_output
-                    print(mat_mul)
                     dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
 
 
@@ -242,10 +241,10 @@ class gated_evidence_fact_generation(Base_model):
                 _gate_value = _gate_value.write(i, tf.cast(tf.argmax(gate_value),tf.int32))
                 loss_g = tf.nn.softmax_cross_entropy_with_logits_v2(logits=gate_value,labels=tl_sf)
 
-                content_vec = attention_vec_evid.read(next_state_i)
-                last_word_vec = tf.cond(tf.equal(i, 0),
-                                  lambda: tf.constant(0, dtype=tf.float32, shape=[self.VEC_SIZE]),
-                                  lambda: fact_mat_emb[i-1])
+                # content_vec = attention_vec_evid.read(next_state_i)
+                # last_word_vec = tf.cond(tf.equal(i, 0),
+                #                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.VEC_SIZE]),
+                #                   lambda: fact_mat_emb[i-1])
 
                 run_state = decoder_state_ta.read(next_state_i)
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0],run_state[1])
