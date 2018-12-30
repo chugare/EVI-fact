@@ -283,8 +283,7 @@ class gated_evidence_fact_generation(Base_model):
                 content_vec = attention_vec_evid.read(gate_index)
                 last_word_vec = tf.cond(tf.equal(i, 0),
                                         lambda: tf.constant(0, dtype=tf.float32, shape=[self.VEC_SIZE]),
-                                        lambda: generated_seq.read(i-1))
-                last_word_vec = tf.nn.embedding_lookup(embedding_t,last_word_vec)
+                                        lambda: tf.nn.embedding_lookup(embedding_t,generated_seq.read(i-1)))
 
                 content_vec = tf.concat(values=[content_vec, last_word_vec], axis=0)
                 content_vec = tf.reshape(content_vec, [1, -1])
