@@ -282,7 +282,7 @@ class gated_evidence_fact_generation(Base_model):
                 # 生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
                 content_vec = attention_vec_evid.read(gate_index)
                 last_word_vec = tf.cond(tf.equal(i, 0),
-                                        lambda: tf.constant(0, dtype=tf.float32, shape=[self.VEC_SIZE]),
+                                        lambda: tf.nn.embedding_lookup([2]),
                                         lambda: tf.nn.embedding_lookup(embedding_t,generated_seq.read(i-1)))
 
                 content_vec = tf.concat(values=[content_vec, last_word_vec], axis=0)
