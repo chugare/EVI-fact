@@ -294,7 +294,7 @@ class gated_evidence_fact_generation(Base_model):
                 mat_mul = map_out_w * decoder_output
                 dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
                 char_most_pro = tf.argmax(dis_v)
-                generated_seq = generated_seq.write(i, char_most_pro)
+                generated_seq = generated_seq.write(i, tf.cast(char_most_pro,tf.int32))
             # 生成context向量
             _state_seq = _state_seq.write(i, run_state)
             i = tf.add(i, 1)
