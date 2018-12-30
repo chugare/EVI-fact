@@ -299,14 +299,15 @@ ABS_VALID_meta ={
 #
 
 if __name__ == '__main__':
-    if sys.argv[0] == 'GEFG':
-        if sys.argv[1] == 'v':
+    print(sys.argv)
+    if sys.argv[1] == 'GEFG':
+        if sys.argv[2] == 'v':
             valid_protype(meta=GEFG_VALID_meta)
-        if sys.argv[1] == 't':
+        if sys.argv[2] == 't':
             train_protype(meta= GEFG_meta)
-    if sys.argv[0] == 'ABS':
-        if sys.argv[1] == 'v':
+    if sys.argv[1] == 'ABS':
+        if sys.argv[2] == 'v':
             valid_protype(meta=ABS_VALID_meta)
-        if sys.argv[1] == 't':
+        if sys.argv[2] == 't':
             train_protype(meta= ABS_meta)
 
