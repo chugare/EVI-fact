@@ -59,7 +59,7 @@ class gated_evidence_fact_generation(Base_model):
             global_step = tf.placeholder(dtype=tf.int32)
         else:
             fact_mat = tf.constant(0)
-            fact_len = tf.constant(0)
+            fact_len = tf.constant(self.MAX_FACT_LEN)
             global_step = tf.constant(0)
 
         fact_mat_emb = tf.nn.embedding_lookup(embedding_t, fact_mat)
@@ -304,7 +304,7 @@ class gated_evidence_fact_generation(Base_model):
 
             return i, _state_seq, generated_seq, run_state, _gate_value,nll
 
-        _, state_seq, output_seq, run_state, gate_value, nll= tf.while_loop(lambda i, *_: i < self.MAX_FACT_LEN, _decoder_step,
+        _, state_seq, output_seq, run_state, gate_value, nll= tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
                                                                  [tf.constant(0), state_seq, output_seq, run_state, gate_value,loss_array],
                                                                  name='generate_word_loop')
 
