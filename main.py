@@ -192,13 +192,14 @@ def valid_protype(meta):
                     fact_seq = inter_res['fact_seq']
                     out_sen = p.get_sentence(out_seq)
                     fact_sen = p.get_sentence(fact_seq)
-
-                    if len(out_sen)<len(fact_sen):
-                        out_sen = out_sen[:len(fact_sen)]
-                    rouge_v = Evaluate.ROUGE_eval(fact_sen,out_sen)
+                    # if len(out_sen)<len(fact_sen):
+                    #     out_sen = out_sen[:len(fact_sen)]
+                    # rouge_v = Evaluate.ROUGE_eval(fact_sen,out_sen)
+                    rouge_v = 0
                     cur_time =time.time()
                     time_cost = cur_time-last_time
                     total_cost = cur_time-start_time
+
                     print('[INFO] 第 %d 个测试例子验证结束  用时: %.2f 共计用时 %.2f 得到生成队列：' % (global_step,time_cost,total_cost))
                     print('TRUE:'+fact_sen)
                     print('GEN:'+out_sen)
