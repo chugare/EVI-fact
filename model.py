@@ -356,8 +356,8 @@ class gated_evidence_fact_generation(Base_model):
 
     def train_fun(self,sess,data_gen,ops,global_step):
         evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
-        state_seq, output_seq, nll,acc, merge, _ = sess.run(
-            [ops['state_seq'], ops['output_seq'], ops['nll'],ops['accuracy'], ops['merge'], ops['train_op']],
+        output_seq, nll,acc, merge, _ = sess.run(
+            [ops['output_seq'], ops['nll'],ops['accuracy'], ops['merge'], ops['train_op']],
             feed_dict={ops['evid_mat']: evid_mat,
                        ops['evid_len']: evid_len,
                        ops['evid_count']: evid_count,
