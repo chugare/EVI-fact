@@ -292,5 +292,5 @@ ABS_VALID_meta ={
     }
 }
 #valid_protype(meta=ABS_VALID_meta)
-# valid_protype(meta=GEFG_VALID_meta)
-train_protype(meta= GEFG_meta)
+valid_protype(meta=GEFG_VALID_meta)
+# train_protype(meta= GEFG_meta)

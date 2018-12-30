@@ -11,29 +11,45 @@ import json
 import re
 import preprocess as PP
 import model
-np = PP.Preprocessor(False)
+npk = PP.Preprocessor(False)
 GEFG = model.gated_evidence_fact_generation()
-dg = np.data_provider('train_data.json',{
+dg = npk.data_provider('train_data.json',{
         'NAME':'GEFG',
         'MEL':GEFG.MAX_EVID_LEN,
         'MEC':GEFG.MAX_EVIDS,
         'MFL':GEFG.MAX_FACT_LEN,
         'BATCH_SIZE':1
     })
+m1 = tf.placeholder(dtype=tf.float32,shape=[2,3,4])
+m2 = tf.placeholder(dtype=tf.float32,shape=[2,3,1])
+r1 = m1 * m2
+# r1 = tf.reduce_sum(r1,1)
+with tf.Session() as sess:
+    mm1 = np.arange(2*3*4)
+    mm1 = np.reshape(mm1,[2,3,4])
+    mm2 = np.arange(2*3*1)
+    mm2 = np.reshape(mm2,[2,3,1])
 
-dic ={}
-log = open('word_count.txt','w')
-for i in dg:
-    fact = i[3]
-    l = i[4]
-    for j in range(l):
-        c = fact[j]
-        if c not in dic:
-            dic[c] = 0
-        dic[c] += 1
-for c in dic:
-    log.write("%d\t%d\n"%(c,dic[c]))
 
+    r = sess.run(r1,feed_dict={m1:mm1,m2:mm2})
+    print(r)
+
+mat1 = tf.ones(shape=[])
+
+
+# dic ={}
+# log = open('word_count.txt','w')
+# for i in dg:
+#     fact = i[3]
+#     l = i[4]
+#     for j in range(l):
+#         c = fact[j]
+#         if c not in dic:
+#             dic[c] = 0
+#         dic[c] += 1
+# for c in dic:
+#     log.write("%d\t%d\n"%(c,dic[c]))
+#
 
 def t1():
     with tf.Session() as sess:

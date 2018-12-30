@@ -113,10 +113,24 @@ class gated_evidence_fact_generation(Base_model):
             # wc = tf.reshape(wc,[])
             # gate_value_after_attention = tf.tensordot(evid_mat,wc,2)
             # gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,1,-1])
+            #
             # gate_value_after_attention = tf.matmul(gate_value_after_attention,evid_mat)
             # gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,-1])
-
-
+            #
+            # GV = tf.matmul(gate_value_after_attention,gate_fc_w)
+            # GV = tf.reshape(GV,[-1])
+            # GV = tf.softmax()
+            #
+            # wc_gen = tf.matmul(attention_var_gen,context_vec)
+            # wc_gen = tf.reshape(wc_gen,[])
+            # content_value_after_attention = tf.tensordot(evid_mat,wc_gen,2)
+            # content_value_after_attention = tf.reshape(content_value_after_attention,[self.MAX_EVIDS,1,-1])
+            #
+            # content_value_after_attention = tf.matmul(content_value_after_attention,evid_mat)
+            # content_value_after_attention = tf.reshape(content_value_after_attention,[self.MAX_EVIDS,-1])
+            #
+            # decoder_cell(content_value_after_attention,)
+            #
 
 
             gate_value = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False,
@@ -236,10 +250,10 @@ class gated_evidence_fact_generation(Base_model):
                 char_most_pro_t = char_most_pro_ta.stack()
                 next_state_i = tf.cast(tf.argmin(total_loss), tf.int32)
                 generated_seq = generated_seq.write(i,char_most_pro_t[next_state_i])
-                tl_sf = tf.nn.softmax(tf.reciprocal(total_loss))
+                tl_sf = tf.nn.softmax(tf.nn.l2_normalize(total_loss))
                 gate_value = gate_value.stack()
-                _gate_value = _gate_value.write(i, tf.cast(tf.argmax(gate_value),tf.int32))
-                loss_g = tf.nn.softmax_cross_entropy_with_logits_v2(logits=gate_value,labels=tl_sf)
+                _gate_value = _gate_value.write(i, tf.cast(tf.argmin(gate_value),tf.int32))
+                loss_g = tf.losses.mean_squared_error(tl_sf,gate_value)
 
                 # content_vec = attention_vec_evid.read(next_state_i)
                 # last_word_vec = tf.cond(tf.equal(i, 0),
@@ -265,12 +279,18 @@ class gated_evidence_fact_generation(Base_model):
                 gate_index = tf.argmax(gate_value)
                 gate_index = tf.cast(gate_index, tf.int32)
                 _gate_value = _gate_value.write(i, gate_index)
-
-
                 # 生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
                 content_vec = attention_vec_evid.read(gate_index)
+                last_word_vec = tf.cond(tf.equal(i, 0),
+                                        lambda: tf.constant(0, dtype=tf.float32, shape=[self.VEC_SIZE]),
+                                        lambda: generated_seq.read(i-1))
+                last_word_vec = tf.nn.embedding_lookup(embedding_t,last_word_vec)
+
+                content_vec = tf.concat(values=[content_vec, last_word_vec], axis=0)
                 content_vec = tf.reshape(content_vec, [1, -1])
+
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0], run_state[1])
+
                 decoder_output, run_state = decoder_cell(content_vec, run_state)
                 mat_mul = map_out_w * decoder_output
                 dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
@@ -365,14 +385,15 @@ class gated_evidence_fact_generation(Base_model):
                        ops['evid_len']: evid_len,
                        ops['evid_count']: evid_count}
         )
-        fact_vec = []
-        for i in range(fact_len):
-            fact_vec.append(fact_mat[i])
+        c = 0
+        for i in output_seq:
+            if i != 1:
+                c+=1
 
-
+        output_seq = output_seq[:c]
         return {
             'out_seq':output_seq,
-            'fact_seq':fact_vec,
+            'fact_seq':fact_mat,
         }
 
 class ABS_model(Base_model):
