@@ -98,8 +98,8 @@ class gated_evidence_fact_generation(Base_model):
                                             initializer=tf.glorot_normal_initializer())
 
         tf.summary.histogram('FACT',fact_mat)
-        distribute_ta = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False,
-                                        name='DIS_MAT',tensor_array_name='DIS_MAT_TA')
+        # distribute_ta = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False,
+        #                                 name='DIS_MAT',tensor_array_name='DIS_MAT_TA')
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
 
             context_vec = tf.cond(tf.equal(i, 0),
@@ -307,7 +307,6 @@ class gated_evidence_fact_generation(Base_model):
 
         gate_value = gate_value.stack()
         tf.summary.histogram(name='GATE',values=gate_value)
-        state_seq = state_seq.stack()
 
         if mode=='train':
             output_seq = output_seq.stack()
@@ -345,7 +344,6 @@ class gated_evidence_fact_generation(Base_model):
             'fact_mat': fact_mat,
             'fact_len': fact_len,
             'global_step':global_step,
-            'state_seq': state_seq,
             'output_seq': output_seq,
             'nll': nll,
             'accuracy':accuracy,
