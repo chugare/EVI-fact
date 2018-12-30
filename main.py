@@ -4,6 +4,7 @@
 #   Create by simengzhao at 2018/9/4 下午2:20
 #   南京大学软件学院 Nanjing University Software Institute
 #
+import sys
 import preprocess
 import model
 import Evaluate
@@ -295,5 +296,17 @@ ABS_VALID_meta ={
     }
 }
 #valid_protype(meta=ABS_VALID_meta)
-valid_protype(meta=GEFG_VALID_meta)
-# train_protype(meta= GEFG_meta)
+#
+
+if __name__ == '__main__':
+    if sys.argv[0] == 'GEFG':
+        if sys.argv[1] == 'v':
+            valid_protype(meta=GEFG_VALID_meta)
+        if sys.argv[1] == 't':
+            train_protype(meta= GEFG_meta)
+    if sys.argv[0] == 'ABS':
+        if sys.argv[1] == 'v':
+            valid_protype(meta=ABS_VALID_meta)
+        if sys.argv[1] == 't':
+            train_protype(meta= ABS_meta)
+
