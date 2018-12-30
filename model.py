@@ -208,8 +208,8 @@ class gated_evidence_fact_generation(Base_model):
                     dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
 
 
-                    with tf.device('/cpu'):
-                        true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
+                    # with tf.device('/cpu'):
+                    true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
                     loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=dis_v,labels= true_l, name='Cross_entropy')
                     char_most_pro = tf.cast(tf.argmax(dis_v), tf.int32)
                     # char_most_pro = tf.cast(fact_mat[i],tf.int32)
