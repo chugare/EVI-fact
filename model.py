@@ -250,10 +250,13 @@ class gated_evidence_fact_generation(Base_model):
                 char_most_pro_t = char_most_pro_ta.stack()
                 next_state_i = tf.cast(tf.argmin(total_loss), tf.int32)
                 generated_seq = generated_seq.write(i,char_most_pro_t[next_state_i])
-                tl_sf = tf.nn.softmax(tf.nn.l2_normalize(total_loss))
+                tl_sf = tf.one_hot(next_state_i,evid_count)
+
                 gate_value = gate_value.stack()
+
+                gate_value = gate_value[:evid_count]
                 _gate_value = _gate_value.write(i, tf.cast(tf.argmin(gate_value),tf.int32))
-                loss_g = tf.losses.mean_squared_error(tl_sf,gate_value)
+                loss_g = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tl_sf,logits=gate_value)
 
                 # content_vec = attention_vec_evid.read(next_state_i)
                 # last_word_vec = tf.cond(tf.equal(i, 0),
