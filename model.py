@@ -391,8 +391,7 @@ class gated_evidence_fact_generation(Base_model):
                 c+=1
 
         output_seq = output_seq[:c]
-        for i in gate_value:
-
+        print(gate_value)
         return {
             'out_seq':output_seq,
             'fact_seq':fact_mat,
