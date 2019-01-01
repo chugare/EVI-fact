@@ -277,7 +277,7 @@ class Preprocessor:
                 evid_vecs = []
                 evid_lens = []
                 for i in range(mec):
-                    if i<len(evids):
+                    if i < len(evids):
                         evid_oh = self.Nencoder(evids[i])
                         tmp_vec = np.array(evid_oh)
                         try:
@@ -290,7 +290,7 @@ class Preprocessor:
                         evid_lens.append(len(evid_oh))
                     else:
                         evid_vecs.append(np.zeros(mel))
-                        evid_lens.append(0)
+                        evid_lens.append(1)
 
                 fact_vec = self.Nencoder(fact)
                 fact_len = len(fact_vec)
