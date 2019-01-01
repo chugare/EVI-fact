@@ -6,6 +6,7 @@
 #
 from rouge import Rouge
 import json
+import  sys
 def ROUGE_eval(standard_sen,generated_sen):
     r = Rouge()
     s = ''
@@ -46,5 +47,5 @@ def do_eval(fname):
 
 
 if __name__ == '__main__':
-    do_eval('ABS_VALID_valid.json')
+    do_eval(sys.argv[1])
 
