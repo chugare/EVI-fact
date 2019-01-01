@@ -391,6 +391,8 @@ class gated_evidence_fact_generation(Base_model):
                 c+=1
 
         output_seq = output_seq[:c]
+        for i in gate_value:
+
         return {
             'out_seq':output_seq,
             'fact_seq':fact_mat,
@@ -532,7 +534,6 @@ class ABS_model(Base_model):
         while not next_word == 1 and count <400:
             nw , gx= sess.run([ ops['y_gen'],ops['gx']],
                               feed_dict={ops['in_x']: [in_x], ops['cont_y']: yca})
-
             yc.append(nw[0])
             yc = yc[1:]
             yca = np.array(yc)

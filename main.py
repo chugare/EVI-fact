@@ -193,10 +193,9 @@ def valid_protype(meta):
                     fact_seq = inter_res['fact_seq']
                     out_sen = p.get_sentence(out_seq)
                     fact_sen = p.get_sentence(fact_seq)
-                    # if len(out_sen)<len(fact_sen):
-                    #     out_sen = out_sen[:len(fact_sen)]
-                    # rouge_v = Evaluate.ROUGE_eval(fact_sen,out_sen)
-                    rouge_v = 0
+                    if len(out_sen)<len(fact_sen):
+                        out_sen = out_sen[:len(fact_sen)]
+                    rouge_v = Evaluate.ROUGE_eval(fact_sen,out_sen)
                     cur_time =time.time()
                     time_cost = cur_time-last_time
                     total_cost = cur_time-start_time
@@ -214,15 +213,13 @@ def valid_protype(meta):
                     )
                     global_step += 1
 
-                    if global_step>10:
-                        break
+                    # if global_step>10:
+                    #     break
                 except StopIteration:
 
                     report_file = open(meta['name']+'_valid.json','w',encoding='utf-8')
                     json.dump(res_list,report_file)
-
                     print("[INFO] 验证结束，正在生成报告..." )
-
                     break
                 # except Exception as e:
                 #     logging.exception(e)
