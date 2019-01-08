@@ -91,7 +91,7 @@ def train_protype(meta):
 
         # 开始训练
         global_step = 0
-        for i in range(epoch):
+        for i in range(start_epoch,epoch):
             data_gen = p.data_provider(source_name, meta=data_meta)
             try:
                 batch_count = 0
