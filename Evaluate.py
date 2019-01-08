@@ -75,6 +75,7 @@ def gate_value_report_write(fname,evids_ids,fact_ids,gate_v):
         f.write(f_c+'\t')
     f.write('\n')
 
+    f.close()
 
 
 if __name__ == '__main__':
