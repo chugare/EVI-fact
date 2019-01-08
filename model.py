@@ -366,7 +366,7 @@ class gated_evidence_fact_generation(Base_model):
             [ops['output_seq'],
              ops['nll'],
              ops['accuracy'],
-             ops['gate_vale'],
+             ops['gate_value'],
              ops['min_loss_index'],
              ops['merge'],
              ops['train_op']],
