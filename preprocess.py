@@ -93,7 +93,15 @@ class Preprocessor:
                 break
 
         return res
+    def get_char_list(self, index_arr):
+        res = []
+        for i in range(len(index_arr)):
+            if index_arr[i] != 1:
+               res.append(self.N2GRAM[index_arr[i]])
+            else:
+                break
 
+        return res
 
     def Nencoder(self, ec_str):
         if self.SEG_BY_WORD:

@@ -47,7 +47,7 @@ def do_eval(fname):
             print("%s %s : %f"%(t,r,avg[t][r]))
 def gate_value_report_write(fname,evids_ids,fact_ids,gate_v):
     p = preprocess.Preprocessor(False)
-    fact = p.get_sentence(fact_ids)
+    fact = p.get_char_list(fact_ids)
 
 
     evids = []
