@@ -312,7 +312,7 @@ class gated_evidence_fact_generation(Base_model):
 
         gate_value = gate_value.stack()
         tf.summary.histogram(name='GATE',values=gate_value)
-
+        min_loss_index = min_loss_index.stack()
         if mode=='train':
             output_seq = output_seq.stack()
             tf.summary.histogram('OUT_PUT',output_seq[:fact_len])
