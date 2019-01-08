@@ -48,12 +48,14 @@ def do_eval(fname):
 def gate_value_report_write(fname,evids_ids,fact_ids,gate_v):
     p = preprocess.Preprocessor(False)
     fact = p.get_sentence(fact_ids)
+
+
     evids = []
     e_w = []
     for e in evids_ids:
         if e[0] == 2:
             e_w.append(0)
-            for i in range(len(e[0])):
+            for i in range(len(e)):
                 if e[i] == 1:
                     e = e[:i]
                     break

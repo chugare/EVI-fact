@@ -387,7 +387,7 @@ class gated_evidence_fact_generation(Base_model):
                 g_acc += 1
         g_acc = float(g_acc)/fact_len
         print('[INFO-ex] Accuracy of gate_value : %.2f'%g_acc )
-
+        evid_mat = evid_mat.astype(np.int32).tolist()
         gate_value_report_write('Gate_report.txt',evid_mat,fact_mat,ml_index)
         return {
             'loss':nll,
