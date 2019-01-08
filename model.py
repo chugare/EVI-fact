@@ -6,7 +6,7 @@
 #
 import tensorflow as tf
 import numpy as np
-from Evaluate import ROUGE_eval
+from Evaluate import ROUGE_eval,gate_value_report_write
 class Base_model:
     def set_meta(self,meta):
         for k in meta:
@@ -88,6 +88,7 @@ class gated_evidence_fact_generation(Base_model):
         adam = tf.train.AdamOptimizer(e_lr)
 
         gate_value = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
+        min_loss_index = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
 
         attention_var_gate = tf.get_variable('attention_sel', dtype=tf.float32,
                                              shape=[self.VEC_SIZE, self.DECODER_NUM_UNIT * 2],
@@ -100,7 +101,7 @@ class gated_evidence_fact_generation(Base_model):
         tf.summary.histogram('FACT',fact_mat)
         # distribute_ta = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False,
         #                                 name='DIS_MAT',tensor_array_name='DIS_MAT_TA')
-        def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, nll):
+        def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value,_min_loss_index, nll):
 
             context_vec = tf.cond(tf.equal(i, 0),
                                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT * 2]),
@@ -255,7 +256,8 @@ class gated_evidence_fact_generation(Base_model):
                 gate_value = gate_value.stack()
 
                 gate_value = gate_value[:evid_count]
-                _gate_value = _gate_value.write(i, tf.cast(tf.argmin(gate_value),tf.int32))
+                _gate_value = _gate_value.write(i, tf.cast(tf.argmax(gate_value),tf.int32))
+                _min_loss_index = _min_loss_index.write(i,next_state_i)
                 loss_g = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tl_sf,logits=gate_value)
 
                 # content_vec = attention_vec_evid.read(next_state_i)
@@ -302,10 +304,10 @@ class gated_evidence_fact_generation(Base_model):
             _state_seq = _state_seq.write(i, run_state)
             i = tf.add(i, 1)
 
-            return i, _state_seq, generated_seq, run_state, _gate_value,nll
+            return i, _state_seq, generated_seq, run_state, _gate_value,_min_loss_index,nll
 
-        _, state_seq, output_seq, run_state, gate_value, nll= tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
-                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value,loss_array],
+        _, state_seq, output_seq, run_state, gate_value,min_loss_index, nll= tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
+                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value,min_loss_index,loss_array],
                                                                  name='generate_word_loop')
 
         gate_value = gate_value.stack()
@@ -352,6 +354,7 @@ class gated_evidence_fact_generation(Base_model):
             'accuracy':accuracy,
             'merge': merge,
             'gate_value':gate_value,
+            'min_loss_index':min_loss_index,
             'train_op':t_op
         }
 
@@ -359,8 +362,14 @@ class gated_evidence_fact_generation(Base_model):
 
     def train_fun(self,sess,data_gen,ops,global_step):
         evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
-        output_seq, nll,acc, merge, _ = sess.run(
-            [ops['output_seq'], ops['nll'],ops['accuracy'], ops['merge'], ops['train_op']],
+        output_seq, nll,acc,gate_value,ml_index,merge, _ = sess.run(
+            [ops['output_seq'],
+             ops['nll'],
+             ops['accuracy'],
+             ops['gate_vale'],
+             ops['min_loss_index'],
+             ops['merge'],
+             ops['train_op']],
             feed_dict={ops['evid_mat']: evid_mat,
                        ops['evid_len']: evid_len,
                        ops['evid_count']: evid_count,
@@ -372,6 +381,14 @@ class gated_evidence_fact_generation(Base_model):
         #     max_i = np.argmax(i)
         #     max_v = i[max_i]
         #     print("%d %f"%(max_i,max_v))
+        g_acc = 0
+        for i in range(fact_len):
+            if gate_value[i] == ml_index[i]:
+                g_acc += 1
+        g_acc = float(g_acc)/fact_len
+        print('[INFO-ex] Accuracy of gate_value : %.2f'%g_acc )
+
+        gate_value_report_write('Gate_report.txt',evid_mat,fact_mat,ml_index)
         return {
             'loss':nll,
             'acc':acc,
