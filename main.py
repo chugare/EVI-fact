@@ -58,8 +58,8 @@ def train_protype(meta):
     logger = log_train(meta['name']) # meta
     data_meta = meta['data_meta'] # meta
 
-    gate_ana_res_file = open('gate_analysis.json','w',encoding='utf-8')
-
+    gate_ana_res_file = open('Gate_report.txt','w',encoding='utf-8')
+    gate_ana_res_file.close()
     # 模型搭建
     # with tf.device('/cpu:0'):
     # with tf.device('/device:GPU:0'):

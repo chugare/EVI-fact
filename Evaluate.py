@@ -63,15 +63,18 @@ def gate_value_report_write(fname,evids_ids,fact_ids,gate_v):
         else:
             break
     f = open(fname,'a',encoding='utf-8')
-
-    for g in gate_v:
-        e_w[g] +=1
+    fact_len = 0
+    for g_i in range(len(gate_v)):
+        if int(fact_ids[g_i])==1:
+            break
+        fact_len+=1
+        e_w[gate_v[g_i]]+=1
     for i in range(len(evids)):
 
         f.write('%d\t%s'%(e_w[i],evids[i]))
         f.write('\n')
-    for g in gate_v:
-        f.write('%d\t'%g)
+    for g in range(fact_len):
+        f.write('%d\t'%gate_v[g])
     f.write('\n')
     for f_c in fact:
         f.write(f_c+'\t')
