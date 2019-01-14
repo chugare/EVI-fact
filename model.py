@@ -37,7 +37,7 @@ class gated_evidence_fact_generation(Base_model):
         self.DECODER_NUM_UNIT = 200
         self.LR = 0.002
         self.OH_ENCODER = False
-        self.DECAY_STEP = 5
+        self.DECAY_STEP = 1
         self.DECAY_RATE = 0.8
         self.CONTEXT_LEN = 20
 
@@ -85,8 +85,8 @@ class gated_evidence_fact_generation(Base_model):
         loss_array = tf.TensorArray(dtype=tf.float32, size=self.MAX_FACT_LEN, clear_after_read=False,name='LOSS_COLLECTION',tensor_array_name='LOSS_TA')
         e_lr = tf.train.exponential_decay(self.LR, global_step=global_step, decay_steps=self.DECAY_STEP,
                                           decay_rate=self.DECAY_RATE, staircase=False)
-        adam = tf.train.AdamOptimizer(e_lr)
-
+        trainer = tf.train.AdamOptimizer(e_lr)
+        # trainer = tf.train.
         gate_value = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
         min_loss_index = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
 
@@ -327,14 +327,14 @@ class gated_evidence_fact_generation(Base_model):
             # tf.summary.histogram("DIS_V",dis_v[:fact_len])
             grads = adam.compute_gradients(nll)
 
-            for var in tf.trainable_variables():
-                tf.summary.histogram(var.name, var)
-            # 使用直方图记录梯度
-            for i,(grad, var) in enumerate(grads):
-                if grad is not None:
-                #     grads[i] = (tf.clip_by_norm(grad,5),var)
-                # tf.summary.histogram(var.name + '/gradient', grads[i])
-                    tf.summary.histogram(var.name + '/gradient', grad)
+            # for var in tf.trainable_variables():
+            #     tf.summary.histogram(var.name, var)
+            # # 使用直方图记录梯度
+            # for i,(grad, var) in enumerate(grads):
+            #     if grad is not None:
+            #     #     grads[i] = (tf.clip_by_norm(grad,5),var)
+            #     # tf.summary.histogram(var.name + '/gradient', grads[i])
+            #         tf.summary.histogram(var.name + '/gradient', grad)
 
             t_op = adam.apply_gradients(grads)
         else:
@@ -381,14 +381,14 @@ class gated_evidence_fact_generation(Base_model):
         #     max_i = np.argmax(i)
         #     max_v = i[max_i]
         #     print("%d %f"%(max_i,max_v))
-        g_acc = 0
-        for i in range(fact_len):
-            if gate_value[i] == ml_index[i]:
-                g_acc += 1
-        g_acc = float(g_acc)/fact_len
-        print('[INFO-ex] Accuracy of gate_value : %.2f'%g_acc )
-
-        gate_value_report_write('Gate_report.txt',evid_mat,fact_mat,ml_index)
+        # g_acc = 0
+        # for i in range(fact_len):
+        #     if gate_value[i] == ml_index[i]:
+        #         g_acc += 1
+        # g_acc = float(g_acc)/fact_len
+        # print('[INFO-ex] Accuracy of gate_value : %.2f'%g_acc )
+        #
+        # gate_value_report_write('Gate_report.txt',evid_mat,fact_mat,ml_index)
         return {
             'loss':nll,
             'acc':acc,

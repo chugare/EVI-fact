@@ -83,14 +83,15 @@ def train_protype(meta):
         sess.graph.finalize()
         train_writer = tf.summary.FileWriter(summary_dir,sess.graph)
         start_epoch = 0
+        global_step = 0
         if checkpoint:
             saver.restore(sess, checkpoint)
             print('[INFO] 从上一次的检查点:\t%s开始继续训练任务' % checkpoint)
             start_epoch += int(checkpoint.split('-')[-1])
+            global_step += int(checkpoint.split('-')[-2])
         start_time = time.time()
 
         # 开始训练
-        global_step = 0
         for i in range(start_epoch,epoch):
             data_gen = p.data_provider(source_name, meta=data_meta)
             try:
@@ -121,19 +122,19 @@ def train_protype(meta):
                         global_step += 1
                     except StopIteration:
                         print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
-                        saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
+                        saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary-'+str(global_step)), global_step=i)
                         break
                     except Exception as e:
                         logging.exception(e)
                         print("[INFO] 因为程序错误停止训练，开始保存模型")
-                        saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
+                        saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary-'+str(global_step)), global_step=i)
             except StopIteration:
                 print("[INFO] Epoch %d 结束，现在开始保存模型..." % i)
-                saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
+                saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary-'+str(global_step)), global_step=i)
 
             except KeyboardInterrupt:
                 print("[INFO] 强行停止训练，开始保存模型")
-                saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary'), global_step=i)
+                saver.save(sess, os.path.join(checkpoint_dir, meta['name']+'_summary-'+str(global_step)), global_step=i)
                 break
 
 def valid_protype(meta):
