@@ -204,11 +204,11 @@ def data_format():
                 continue
         dataset.append({'fact':fact,'evid':evids})
 
-    print('因事实过大被丢弃数量：%d'%count[0])
-    print('因事实过小被丢弃数量：%d'%count[3])
-    print('因证据过大被丢弃数量：%d'%count[2])
-    print('因证据过多被丢弃数量：%d'%count[1])
-    print('剩余样例数量：%d'%len(dataset))
+    print('事实过大\t%d'%count[0])
+    print('事实过小\t%d'%count[3])
+    print('证据过大\t%d'%count[2])
+    print('证据过多\t%d'%count[1])
+    print('剩余样例\t%d'%len(dataset))
 
 
     json.dump(dataset,res_file, ensure_ascii=False, indent=2)

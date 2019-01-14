@@ -85,8 +85,8 @@ class gated_evidence_fact_generation(Base_model):
         loss_array = tf.TensorArray(dtype=tf.float32, size=self.MAX_FACT_LEN, clear_after_read=False,name='LOSS_COLLECTION',tensor_array_name='LOSS_TA')
         e_lr = tf.train.exponential_decay(self.LR, global_step=global_step, decay_steps=self.DECAY_STEP,
                                           decay_rate=self.DECAY_RATE, staircase=False)
-        trainer = tf.train.AdamOptimizer(e_lr)
-        # trainer = tf.train.
+        adam = tf.train.AdamOptimizer(e_lr)
+
         gate_value = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
         min_loss_index = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
 
