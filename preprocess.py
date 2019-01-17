@@ -13,6 +13,7 @@ import jieba
 import numpy as np
 import re
 import json
+import pkuseg
 
 class Preprocessor:
     def __init__(self,SEG_BY_WORD = True):
@@ -41,12 +42,13 @@ class Preprocessor:
     def init_dic(self, source_file):
         #   第一次建立字典的时候调用
         dic_count = {}
+        seg = pkuseg.pkuseg()
         try:
             data_gen = self.read_file(source_file)
             
             for aj in data_gen:
                 if self.SEG_BY_WORD:
-                    grams = jieba.lcut(aj['fact'])
+                    grams = seg.cut(aj['fact'])
                 else:
                     grams = aj['fact'].strip()
                 for gram in grams:
@@ -56,7 +58,7 @@ class Preprocessor:
                 evids = aj['evid']
                 for e in evids:
                     if self.SEG_BY_WORD:
-                        grams = jieba.lcut(e)
+                        grams = seg.cut(e)
                     else:
                         grams = e.strip()
                     for gram in grams:
@@ -64,9 +66,9 @@ class Preprocessor:
                             dic_count[gram] = 0
                         dic_count[gram] += 1
 
-            self.GRAM2N['<unk>'] = 0
-            self.GRAM2N['<eos>'] = 1
-            self.GRAM2N['<sos>'] = 2
+            self.GRAM2N['<u>'] = 0
+            self.GRAM2N['<e>'] = 1
+            self.GRAM2N['<s>'] = 2
             index = 3
             for word in dic_count:
                 if dic_count[word] >= self.freq_threshold:
@@ -81,7 +83,11 @@ class Preprocessor:
             dic_file = open('_WORD_DIC.txt', 'w', encoding='utf-8')
         else:
             dic_file = open('_CHAR_DIC.txt', 'w', encoding='utf-8')
+        count = 0
         for i in self.GRAM2N:
+            if count%100 == 0:
+                print("[INFO] %f of word has been written.."%(float(count)/index))
+            count+=1
             dic_file.write('%s %d\n' % (i, self.GRAM2N[i]))
 
     def get_sentence(self, index_arr):
@@ -314,7 +320,7 @@ class Preprocessor:
         else:
             print("[ERROR] Declaration of format type is required")
 def init():
-    p = Preprocessor(False)
+    p = Preprocessor(True)
     p.init_dic('RAW_DATA.json')
 if __name__ == '__main__':
     print('[INFO] 初始化字典/词典')
