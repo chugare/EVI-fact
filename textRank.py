@@ -4,13 +4,7 @@ import json
 import math
 import numpy as np
 import re
-seg = pkuseg.pkuseg()
-fp = open('test_data.json','r',encoding='utf-8')
-td = json.load(fp)
-for l in td:
-    words = seg.cut(l['fact'])
-    print(l['fact'])
-    print(words)
+
 
 
 class textRank:
@@ -28,15 +22,15 @@ class textRank:
                 if f  in self.GRAM2N:
                     fact_id.append(self.GRAM2N[f])
             # self.facts.append(fact)
-            evids = docs_js['evid']
+            evids = doc_js['evid']
             evid_sentences = []
             for e in evids:
                 sen_tmp  =  re.split("[，。；]+",e)
                 for s in sen_tmp:
                     s = s.strip()
-                    if s<=0:
+                    if len(s)<=5:
                         continue
-                    evid_sentences.append(seg.cut(sen_tmp))
+                    evid_sentences.append(seg.cut(s))
             evid_ids = []
             for evid in evid_sentences:
                 evid_id = []
@@ -55,12 +49,11 @@ class textRank:
             self.GRAM2N[word] = index
             self.RANK[word] = 1.0
             self.N2GRAM[index] = word
-    def __init__(self,docs,dict=None):
+    def __init__(self):
         self.GRAM2N = {}
         self.N2GRAM = {}
         self.RANK = {}
         self.read_dic()
-        self.readJSONDoc(docs)
     @staticmethod
     def simility(sen1,sen2):
         s_c = 0
@@ -70,11 +63,16 @@ class textRank:
                     s_c += 1
         return float(s_c)/(math.log(len(sen1))+math.log(len(sen2)))
 
-    def calcRank(self,fact_seg,evids_seg):
+    def id2sen(self,ids):
+        sen = ''
+        for id in ids:
+            sen += self.N2GRAM[id]
+        return sen
+    def calcRank(self,evids_seg):
 
         V = np.ones([len(evids_seg)],np.float32)
         E = np.zeros([len(evids_seg),len(evids_seg)],np.float32)
-        W_o = np.sum(E,1)
+
         d = 0.85
         for i in range(len(evids_seg)-1):
 
@@ -82,12 +80,13 @@ class textRank:
                 sim = self.simility(evids_seg[i],evids_seg[j])
                 E[i][j] = sim
                 E[j][i] = sim
+        W_o = np.sum(E, 1)
         def V_iter():
             V_t = np.ones([len(evids_seg)],np.float32)
             for i in range(len(evids_seg)):
                 sum1 = 0.0
                 for j in range(len(evids_seg)):
-                    sum1 += E[j][i]*V[j]/W_o[j]
+                    sum1 += E[j][i]*V[j]/(W_o[j]+0.001)
                 V_t[i] = (1-d) + d*sum1
             return V_t
         def loss(V,V_t):
@@ -98,5 +97,19 @@ class textRank:
         for i in range(100):
             V_t = V_iter()
             loss_v = loss(V,V_t)
-            print(loss_v)
+            if loss_v<1e-7:
+                break
             V = V_t
+        return V
+
+if __name__ == '__main__':
+    tr = textRank()
+    doc_g = tr.readJSONDoc('train_data.json')
+    for fact,evids in doc_g:
+        V_r = tr.calcRank(evids_seg=evids)
+        V = []
+        for i in range(len(evids)):
+            V.append([i, V_r[i]])
+
+        V = V.sort(key=lambda x:x[1])
+
