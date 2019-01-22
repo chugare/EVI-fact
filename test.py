@@ -20,15 +20,16 @@ dg = npk.data_provider('train_data.json',{
         'MFL':GEFG.MAX_FACT_LEN,
         'BATCH_SIZE':1
     })
-m1 = tf.placeholder(dtype=tf.float32,shape=[2,3,4])
-m2 = tf.placeholder(dtype=tf.float32,shape=[2,3,1])
-r1 = m1 * m2
+m1 = tf.placeholder(dtype=tf.float32,shape=[5,3,4])
+m2 = tf.placeholder(dtype=tf.float32,shape=[1,3,4])
+r1 = m1
+r2[3] = m2
 # r1 = tf.reduce_sum(r1,1)
 with tf.Session() as sess:
     mm1 = np.arange(2*3*4)
-    mm1 = np.reshape(mm1,[2,3,4])
+    mm1 = np.reshape(mm1,[5,3,4])
     mm2 = np.arange(2*3*1)
-    mm2 = np.reshape(mm2,[2,3,1])
+    mm2 = np.reshape(mm2,[1,3,4])
 
 
     r = sess.run(r1,feed_dict={m1:mm1,m2:mm2})
