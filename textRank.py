@@ -108,8 +108,14 @@ if __name__ == '__main__':
     for fact,evids in doc_g:
         V_r = tr.calcRank(evids_seg=evids)
         V = []
+        print(len(evids))
         for i in range(len(evids)):
-            V.append([i, V_r[i]])
+            V.append((i,V_r[i]))
 
-        V = V.sort(key=lambda x:x[1])
+
+        V.sort(key=lambda x:x[1],reverse=True)
+        for k in range(10):
+            ids,loss = V[k]
+            print(tr.id2sen(evids[ids]))
+
 
