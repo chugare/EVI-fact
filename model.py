@@ -70,13 +70,6 @@ class gated_evidence_fact_generation(Base_model):
         else:
             evid_mat = tf.nn.embedding_lookup(embedding_t, evid_mat_r)
 
-        i =tf.constant(0)
-        evid_sig = tf.TensorArray(dtype=tf.float32, size=self.MAX_EVIDS, clear_after_read=False,name='EVID_SIGINIFCANT',tensor_array_name='EVID_SIG')
-        def init_evid_sig_loop(i,evid_sig):
-            evid_sig = evid_sig.write(i,tf.zeros(shape=[self.MAX_EVID_LEN]))
-            i = i+1
-            return i,evid_sig
-        evid_sig = tf.while_loop(lambda i,*_:i<evid_count,init_evid_sig_loop,[i,evid_sig])
 
         decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT, state_is_tuple=True)
         run_state = decoder_cell.zero_state(self.BATCH_SIZE, tf.float32)
@@ -107,7 +100,7 @@ class gated_evidence_fact_generation(Base_model):
         tf.summary.histogram('FACT',fact_mat)
         # distribute_ta = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False,
         #                                 name='DIS_MAT',tensor_array_name='DIS_MAT_TA')
-        def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value,_min_loss_index, nll,evid_sig):
+        def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value,_min_loss_index, nll):
 
             context_vec = tf.cond(tf.equal(i, 0),
                                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT * 2]),
@@ -173,9 +166,12 @@ class gated_evidence_fact_generation(Base_model):
 
                 gate_m = tf.reduce_sum(gate_v,1)
                 gate_m = tf.nn.softmax(gate_m)
-                gate_m = tf.reshape(gate_m,[1,-1])
-                gate_v = tf.reshape(tf.matmul(gate_m, word_vec_seq),[-1])
-                gate_v = tf.nn.l2_normalize(gate_v)
+                max_word = tf.argmax(gate_m)
+                # gate_m = tf.reshape(gate_m,[1,-1])
+                #
+                # gate_v = tf.reshape(tf.matmul(gate_m, word_vec_seq),[-1])
+                # gate_v = tf.nn.l2_normalize(gate_v)
+                gate_v = word_vec_seq[max_word]
                 gate_v = tf.reduce_mean(gate_v*gate_fc_w)
 
                 align = tf.matmul(word_vec_seq, attention_var_gen) * context_vec
@@ -275,8 +271,6 @@ class gated_evidence_fact_generation(Base_model):
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0],run_state[1])
                 # ec = tf.cast(evid_count,dtype=tf.float32)
                 total_loss = loss_res_ta.read(next_state_i)+loss_g
-                sig_write = evid_sig.read(next_state_i)+attention_vec_evid.read(next_state_i)
-                evid_sig = evid_sig.write(next_state_i,sig_write)
                 # 11/27 更改损失计算方式为从每一个证据生成进行计算
                 # 12/12 更改损失计算方式为使用最低loss证据产生的loss计算
                 # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
@@ -312,10 +306,10 @@ class gated_evidence_fact_generation(Base_model):
             _state_seq = _state_seq.write(i, run_state)
             i = tf.add(i, 1)
 
-            return i, _state_seq, generated_seq, run_state, _gate_value,_min_loss_index,nll,evid_sig
+            return i, _state_seq, generated_seq, run_state, _gate_value,_min_loss_index,nll
 
-        _, state_seq, output_seq, run_state, gate_value,min_loss_index, nll,evid_sig= tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
-                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value,min_loss_index,loss_array,evid_sig],
+        _, state_seq, output_seq, run_state, gate_value,min_loss_index, nll= tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
+                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value,min_loss_index,loss_array],
                                                                  name='generate_word_loop')
 
         gate_value = gate_value.stack()
@@ -363,7 +357,6 @@ class gated_evidence_fact_generation(Base_model):
             'merge': merge,
             'gate_value':gate_value,
             'min_loss_index':min_loss_index,
-            'evid_sig':evid_sig,
             'train_op':t_op
         }
 
@@ -378,7 +371,6 @@ class gated_evidence_fact_generation(Base_model):
              ops['gate_value'],
              ops['min_loss_index'],
              ops['merge'],
-             ops['evid_sig'],
              ops['train_op']],
             feed_dict={
                        ops['evid_mat']: evid_mat,

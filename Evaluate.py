@@ -6,6 +6,8 @@
 #
 from rouge import Rouge
 import json
+import xlrd
+import xlwt
 import preprocess
 import  sys
 def ROUGE_eval(standard_sen,generated_sen):
@@ -46,6 +48,14 @@ def do_eval(fname):
             avg[t][r] = float(sum[t][r])/c
             print("%s %s : %f"%(t,r,avg[t][r]))
 def gate_value_report_write(fname,evids_ids,fact_ids,gate_v):
+    '''
+    用于记录gate值和生成事实之间的对应关系，每一个事实对应一个生成时的最佳证据编号
+    :param fname: 文件名
+    :param evids_ids: 证据的id序列
+    :param fact_ids:  事实id序列
+    :param gate_v: 门控值
+    :return:
+    '''
     p = preprocess.Preprocessor(False)
     fact = p.get_char_list(fact_ids)
 

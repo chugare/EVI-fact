@@ -14,6 +14,7 @@ import numpy as np
 import re
 import json
 import pkuseg
+import sys
 
 class Preprocessor:
     def __init__(self,SEG_BY_WORD = True):
@@ -45,8 +46,10 @@ class Preprocessor:
         seg = pkuseg.pkuseg()
         try:
             data_gen = self.read_file(source_file)
-            
+            count = 0
             for aj in data_gen:
+                if count%10 == 0:
+                    sys.stdout.write("\r[INFO] %d of aj has been read to mem.."%count)
                 if self.SEG_BY_WORD:
                     grams = seg.cut(aj['fact'])
                 else:
@@ -65,17 +68,21 @@ class Preprocessor:
                         if gram not in dic_count:
                             dic_count[gram] = 0
                         dic_count[gram] += 1
-
+                count += 1
             self.GRAM2N['<u>'] = 0
             self.GRAM2N['<e>'] = 1
             self.GRAM2N['<s>'] = 2
             index = 3
+            print('\n[INFO] File read successfully, now drop word less than %d'%self.freq_threshold)
+            count_t = 0
             for word in dic_count:
+                if count_t % 1000 == 0:
+                    sys.stdout.write("\r[INFO] %f finished .." % (float(count_t) / len(dic_count)))
                 if dic_count[word] >= self.freq_threshold:
                     if word not in self.ULSW:
                         self.GRAM2N[word] = index
                     index += 1
-            print('[INFO] Dictionary built successfully')
+            print('\n[INFO] Dictionary built successfully')
         except FileNotFoundError:
             print("[ERROR] Source file \'%s\' not found" % (source_file))
         
@@ -85,8 +92,8 @@ class Preprocessor:
             dic_file = open('_CHAR_DIC.txt', 'w', encoding='utf-8')
         count = 0
         for i in self.GRAM2N:
-            if count%100 == 0:
-                print("[INFO] %f of word has been written.."%(float(count)/index))
+            if count%1000 == 0:
+                sys.stdout.write("\r[INFO] %f of word has been written.."%(float(count)/index))
             count+=1
             dic_file.write('%s %d\n' % (i, self.GRAM2N[i]))
 
