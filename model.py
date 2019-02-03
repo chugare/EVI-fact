@@ -40,7 +40,7 @@ class gated_evidence_fact_generation(Base_model):
         self.DECAY_STEP = 1
         self.DECAY_RATE = 0.8
         self.CONTEXT_LEN = 20
-
+        self.HIDDEN_SIZE = 300
 
 
     def build_model(self, mode):
@@ -70,15 +70,8 @@ class gated_evidence_fact_generation(Base_model):
         else:
             evid_mat = tf.nn.embedding_lookup(embedding_t, evid_mat_r)
 
-
-        decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT, state_is_tuple=True)
-        run_state = decoder_cell.zero_state(self.BATCH_SIZE, tf.float32)
         output_seq = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='OUTPUT_SEQ',tensor_array_name='OUTPUT_SQ_TA')
-        state_seq = tf.TensorArray(dtype=tf.float32, size=self.MAX_FACT_LEN, clear_after_read=False,name='STATE_SEQ',tensor_array_name='STATE_SQ_TA')
-        map_out_w = tf.get_variable('map_out', shape=[self.MAX_VOCA_SZIE, self.DECODER_NUM_UNIT], dtype=tf.float32,
-                                    initializer=tf.truncated_normal_initializer())
-        map_out_b = tf.get_variable('map_bias', shape=[self.MAX_VOCA_SZIE], dtype=tf.float32,
-                                    initializer=tf.constant_initializer(0))
+
         gate_fc_w = tf.get_variable('gate',shape=[self.VEC_SIZE],dtype=tf.float32,
                                     initializer=tf.glorot_normal_initializer())
         loss_array = tf.TensorArray(dtype=tf.float32, size=self.MAX_FACT_LEN, clear_after_read=False,name='LOSS_COLLECTION',tensor_array_name='LOSS_TA')
@@ -88,57 +81,53 @@ class gated_evidence_fact_generation(Base_model):
 
         gate_value = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
         min_loss_index = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
-
+        #选择机制所使用的attention向量
         attention_var_gate = tf.get_variable('attention_sel', dtype=tf.float32,
-                                             shape=[self.VEC_SIZE, self.DECODER_NUM_UNIT * 2],
+                                             shape=[self.VEC_SIZE, self.HIDDEN_SIZE],
                                              initializer=tf.glorot_normal_initializer())
-
+        #生成器所使用的attention向量
         attention_var_gen = tf.get_variable('attention_gen', dtype=tf.float32,
-                                            shape=[ self.VEC_SIZE,self.DECODER_NUM_UNIT * 2],
+                                            shape=[ self.VEC_SIZE,self.HIDDEN_SIZE],
+                                            initializer=tf.glorot_normal_initializer())
+        #用于神经语言模型的生成器的向量
+        U_GEN = tf.get_variable('U_GEN', dtype=tf.float32,
+                                            shape=[self.MAX_VOCA_SZIE,self.CONTEXT_LEN*self.VEC_SIZE],
+                                            initializer=tf.glorot_normal_initializer())
+        U_ATTEN = tf.get_variable('U_ATTEN', dtype=tf.float32,
+                                            shape=[self.HIDDEN_SIZE,self.CONTEXT_LEN*self.VEC_SIZE],
+                                            initializer=tf.glorot_normal_initializer())
+        #
+        GEN_b = tf.get_variable('Ub', dtype=tf.float32,
+                                            shape=[self.MAX_VOCA_SZIE],
+                                                    initializer=tf.constant_initializer(0))
+
+        #
+        W_GEN = tf.get_variable('W_GEN', dtype=tf.float32,
+                                            shape=[self.MAX_VOCA_SZIE,self.VEC_SIZE],
                                             initializer=tf.glorot_normal_initializer())
 
-        tf.summary.histogram('FACT',fact_mat)
-        # distribute_ta = tf.TensorArray(dtype=tf.float32, size=fact_len, clear_after_read=False,
-        #                                 name='DIS_MAT',tensor_array_name='DIS_MAT_TA')
-        def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value,_min_loss_index, nll):
+        #
+        # V = tf.get_variable('V', dtype=tf.float32,
+        #                                     shape=[self.HIDDEN_SIZE,self.CONTEXT_LEN*self.VEC_SIZE],
+        #                                     initializer=tf.glorot_normal_initializer())
+        # tf.summary.histogram('FACT',fact_mat)
+        def _decoder_step(i, generated_seq, _gate_value,_min_loss_index, nll):
 
-            context_vec = tf.cond(tf.equal(i, 0),
-                                  lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT * 2]),
-                                  lambda: _state_seq.read(i-1))
 
-            # 计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验
 
-            # context_vec = tf.reshape(context_vec,[-1,1])
-            # wc = tf.matmul(attention_var_gate,context_vec)
-            # wc = tf.reshape(wc,[])
-            # gate_value_after_attention = tf.tensordot(evid_mat,wc,2)
-            # gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,1,-1])
-            #
-            # gate_value_after_attention = tf.matmul(gate_value_after_attention,evid_mat)
-            # gate_value_after_attention = tf.reshape(gate_value_after_attention,[self.MAX_EVIDS,-1])
-            #
-            # GV = tf.matmul(gate_value_after_attention,gate_fc_w)
-            # GV = tf.reshape(GV,[-1])
-            # GV = tf.softmax()
-            #
-            # wc_gen = tf.matmul(attention_var_gen,context_vec)
-            # wc_gen = tf.reshape(wc_gen,[])
-            # content_value_after_attention = tf.tensordot(evid_mat,wc_gen,2)
-            # content_value_after_attention = tf.reshape(content_value_after_attention,[self.MAX_EVIDS,1,-1])
-            #
-            # content_value_after_attention = tf.matmul(content_value_after_attention,evid_mat)
-            # content_value_after_attention = tf.reshape(content_value_after_attention,[self.MAX_EVIDS,-1])
-            #
-            # decoder_cell(content_value_after_attention,)
-            #
+            content_mat = tf.cond(tf.less(i,self.CONTEXT_LEN),
+                                  lambda : tf.pad(fact_mat_emb[:i],[[0,0],[self.CONTEXT_LEN-i,0]]),
+                                  lambda : fact_mat_emb[i-20:i])
+
+            U_CONTEXT_GEN  =  tf.reshape(tf.matmul(U_GEN,tf.reshape(content_mat,[-1,1])),[-1])
+            CONTEXT_ATTEN  =  tf.reshape(tf.matmul(U_ATTEN,tf.reshape(content_mat,[-1,1])),[-1])
+
 
 
             gate_value = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False,
                                         name='GATE_V_LOOP',tensor_array_name='GV_LP_TA')
             attention_vec_evid = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False,
                                                 name='ATTENTION_VEC_LOOP',tensor_array_name='AT_VEC_LP_TA')
-            decoder_state_ta = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False,
-                                              name='DECODER_STATE_LOOP',tensor_array_name='DECODER_STATE_LP_TA')
             loss_res_ta = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False,
                                          name='LOSS_LOOP', tensor_array_name='LOSS_LP_TA')
             char_most_pro_ta = tf.TensorArray(dtype=tf.int32, size=evid_count, clear_after_read=False,
@@ -146,24 +135,25 @@ class gated_evidence_fact_generation(Base_model):
             # 在训练的时候，由于每一个证据的关联性都不确定，所以我想把从每一个证据生成的新数据内容都进行训练和梯度下降
 
             _step_input = {
-                'decoder_state_ta':decoder_state_ta,
-                'context_vec':context_vec,
                 'gate_value':gate_value,
                 'attention_vec_evid':attention_vec_evid,
                 'loss_res_ta':loss_res_ta,
                 'char_most_pro_ta':char_most_pro_ta
-                # 'loss_index':loss_index,
-                # 'total_loss_ta':total_loss_ta
+
             }
+            true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
+
+            def _step(j,_step_input):
+
+                gate_value = _step_input['gate_value']
+                attention_vec_evid = _step_input['attention_vec_evid']
+                loss_res_ta = _step_input['loss_res_ta']
+                char_most_pro_ta = _step_input['char_most_pro_ta']
 
 
+                word_vec_seq = evid_mat[j][0:evid_len[j]]
 
-            def _gate_calc(word_vec_seq, context_vec):
-                # word_vec_seq = tf.reshape(word_vec_seq, shape=[word_vec_seq.shape[1], word_vec_seq.shape[2]])
-
-                context_vec = tf.reshape(context_vec, [-1])
-                gate_v = tf.matmul(word_vec_seq, attention_var_gate) * context_vec
-
+                gate_v = tf.matmul(word_vec_seq, attention_var_gate) * CONTEXT_ATTEN
                 gate_m = tf.reduce_sum(gate_v,1)
                 gate_m = tf.nn.softmax(gate_m)
                 max_word = tf.argmax(gate_m)
@@ -174,62 +164,30 @@ class gated_evidence_fact_generation(Base_model):
                 gate_v = word_vec_seq[max_word]
                 gate_v = tf.reduce_mean(gate_v*gate_fc_w)
 
-                align = tf.matmul(word_vec_seq, attention_var_gen) * context_vec
+                align = tf.matmul(word_vec_seq, attention_var_gen) * CONTEXT_ATTEN
                 align = tf.reduce_sum(align, 1)
                 align = tf.reshape(align, [1, -1])
                 align_m = tf.nn.softmax(align)
                 content_vec = tf.reshape(tf.matmul(align_m, word_vec_seq), [-1])
                 content_vec = tf.nn.l2_normalize(content_vec)
-                return gate_v, content_vec
-
-            def _step(j,_step_input):
-
-                decoder_state_ta = _step_input['decoder_state_ta']
-                context_vec = _step_input['context_vec']
-                gate_value = _step_input['gate_value']
-                attention_vec_evid = _step_input['attention_vec_evid']
-                loss_res_ta = _step_input['loss_res_ta']
-                char_most_pro_ta = _step_input['char_most_pro_ta']
-                # loss_index = _step_input['loss_index']
-                # total_loss_ta = _step_input['total_loss_ta']
-
-                word_vec_seq = evid_mat[j][0:evid_len[j]]
-                gate_v,content_vec =_gate_calc(word_vec_seq, context_vec)
                 gate_value = gate_value.write(j,gate_v)
                 attention_vec_evid = attention_vec_evid.write(j,content_vec)
 
 
                 if mode == 'train':
-                    last_word_vec = tf.cond(tf.equal(i, 0),
-                                  lambda: tf.constant(0, dtype=tf.float32, shape=[self.VEC_SIZE]),
-                                  lambda: fact_mat_emb[i-1])
-
-                    content_vec = tf.concat(values=[content_vec, last_word_vec], axis=0)
-                    content_vec = tf.reshape(content_vec, [1, -1])
-                    decoder_output,decoder_state = decoder_cell(content_vec,run_state)
-                    mat_mul = map_out_w * decoder_output
-                    dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
-
-
-                    # with tf.device('/cpu'):
-                    true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
+                    content_vec = tf.reshape(content_vec,[-1,1])
+                    W_ENC = tf.reshape(tf.matmul(W_GEN,content_vec),[-1])
+                    dis_v = W_ENC+U_CONTEXT_GEN+GEN_b
                     loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=dis_v,labels= true_l, name='Cross_entropy')
                     char_most_pro = tf.cast(tf.argmax(dis_v), tf.int32)
-                    # char_most_pro = tf.cast(fact_mat[i],tf.int32)
-                    decoder_state_ta = decoder_state_ta.write(j,decoder_state)
                     loss_res_ta = loss_res_ta.write(j,loss)
                     char_most_pro_ta = char_most_pro_ta.write(j,char_most_pro)
-                    # total_loss_ta = total_loss_ta.write(loss_index)
 
                 _step_output = {
-                    'decoder_state_ta': decoder_state_ta,
-                    'context_vec': context_vec,
                     'gate_value': gate_value,
                     'attention_vec_evid': attention_vec_evid,
                     'loss_res_ta': loss_res_ta,
                     'char_most_pro_ta':char_most_pro_ta
-                    # 'loss_index':loss_index,
-                    # 'total_loss_ta':total_loss_ta
                 }
                 j = tf.add(j, 1)
                 return j,_step_output
@@ -237,15 +195,10 @@ class gated_evidence_fact_generation(Base_model):
                                                 [tf.constant(0),_step_input],
                                                 name='get_gate_value_loop')
 
-            decoder_state_ta = _step_output['decoder_state_ta']
-            context_vec = _step_output['context_vec']
             gate_value = _step_output['gate_value']
             attention_vec_evid = _step_output['attention_vec_evid']
             loss_res_ta = _step_output['loss_res_ta']
             char_most_pro_ta = _step_output['char_most_pro_ta']
-            # loss_index = _step_output['loss_index']
-            # total_loss_ta = _step_output['total_loss_ta']
-
 
             if mode == 'train':
             # 11/06 更改损失函数变为交叉熵
@@ -254,32 +207,16 @@ class gated_evidence_fact_generation(Base_model):
                 next_state_i = tf.cast(tf.argmin(total_loss), tf.int32)
                 generated_seq = generated_seq.write(i,char_most_pro_t[next_state_i])
                 tl_sf = tf.one_hot(next_state_i,evid_count)
-
                 gate_value = gate_value.stack()
-
                 gate_value = gate_value[:evid_count]
                 _gate_value = _gate_value.write(i, tf.cast(tf.argmax(gate_value),tf.int32))
                 _min_loss_index = _min_loss_index.write(i,next_state_i)
                 loss_g = tf.nn.softmax_cross_entropy_with_logits_v2(labels=tl_sf,logits=gate_value)
 
-                # content_vec = attention_vec_evid.read(next_state_i)
-                # last_word_vec = tf.cond(tf.equal(i, 0),
-                #                   lambda: tf.constant(0, dtype=tf.float32, shape=[self.VEC_SIZE]),
-                #                   lambda: fact_mat_emb[i-1])
 
-                run_state = decoder_state_ta.read(next_state_i)
-                run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0],run_state[1])
-                # ec = tf.cast(evid_count,dtype=tf.float32)
                 total_loss = loss_res_ta.read(next_state_i)+loss_g
-                # 11/27 更改损失计算方式为从每一个证据生成进行计算
-                # 12/12 更改损失计算方式为使用最低loss证据产生的loss计算
-                # true_l = tf.one_hot(fact_mat[i],depth=self.MAX_VOCA_SZIE)
-                # loss = tf.nn.softmax_cross_entropy_with_logits(dis_v,true_l,name='Cross_entropy')
-                #
+            #
                 nll = nll.write(i, total_loss)
-                # dis_v = tf.nn.softmax(dis_v)
-
-                # nll = nll.write(i, -tf.log(dis_v[fact_mat[i]]))
             else:
                 # 对每一个单词的分布取最大值
                 gate_value = gate_value.stack()
@@ -288,28 +225,17 @@ class gated_evidence_fact_generation(Base_model):
                 _gate_value = _gate_value.write(i, gate_index)
                 # 生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
                 content_vec = attention_vec_evid.read(gate_index)
-                last_word_vec = tf.cond(tf.equal(i, 0),
-                                        lambda: tf.constant(0, dtype=tf.float32, shape=[self.VEC_SIZE]),
-                                        lambda: tf.nn.embedding_lookup(embedding_t,generated_seq.read(i-1)))
-
-                content_vec = tf.concat(values=[content_vec, last_word_vec], axis=0)
-                content_vec = tf.reshape(content_vec, [1, self.VEC_SIZE*2])
-
-                run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0], run_state[1])
-
-                decoder_output, run_state = decoder_cell(content_vec, run_state)
-                mat_mul = map_out_w * decoder_output
-                dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
+                W_ENC = tf.matmul(W_GEN, content_vec)
+                dis_v = W_ENC + U_CONTEXT_GEN + GEN_b
                 char_most_pro = tf.argmax(dis_v)
                 generated_seq = generated_seq.write(i, tf.cast(char_most_pro,tf.int32))
             # 生成context向量
-            _state_seq = _state_seq.write(i, run_state)
             i = tf.add(i, 1)
 
-            return i, _state_seq, generated_seq, run_state, _gate_value,_min_loss_index,nll
+            return i, generated_seq, _gate_value,_min_loss_index,nll
 
-        _, state_seq, output_seq, run_state, gate_value,min_loss_index, nll= tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
-                                                                 [tf.constant(0), state_seq, output_seq, run_state, gate_value,min_loss_index,loss_array],
+        _,output_seq, gate_value,min_loss_index, nll= tf.while_loop(lambda i, *_: i < fact_len, _decoder_step,
+                                                                 [tf.constant(0), output_seq,  gate_value,min_loss_index,loss_array],
                                                                  name='generate_word_loop')
 
         gate_value = gate_value.stack()
@@ -364,6 +290,7 @@ class gated_evidence_fact_generation(Base_model):
 
     def train_fun(self,sess,data_gen,ops,global_step):
         evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
+
         output_seq, nll,acc,gate_value,ml_index,merge,evid_sig,_ = sess.run(
             [ops['output_seq'],
              ops['nll'],
