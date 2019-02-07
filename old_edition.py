@@ -1,3 +1,6 @@
+
+import  tensorflow as tf
+
 class gated_evidence_fact_generation_3(Base_model):
     # 利用证据文本生成事实文本的模型，使用门控机制控制各个证据对于生成的作用，使用递归神经网络对每一个证据文本进行编码
     # 第三版，修改目标，

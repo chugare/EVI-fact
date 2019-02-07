@@ -99,7 +99,7 @@ class gated_evidence_fact_generation(Base_model):
         #
         GEN_b = tf.get_variable('Ub', dtype=tf.float32,
                                             shape=[self.MAX_VOCA_SZIE],
-                                                    initializer=tf.constant_initializer(0))
+                                            initializer=tf.constant_initializer(0))
 
         #
         W_GEN = tf.get_variable('W_GEN', dtype=tf.float32,
@@ -116,11 +116,11 @@ class gated_evidence_fact_generation(Base_model):
 
 
             content_mat = tf.cond(tf.less(i,self.CONTEXT_LEN),
-                                  lambda : tf.pad(fact_mat_emb[:i],[[0,0],[self.CONTEXT_LEN-i,0]]),
-                                  lambda : fact_mat_emb[i-20:i])
+                                  lambda : tf.pad(tf.slice(fact_mat_emb,[0,0],[i,self.VEC_SIZE]),[[self.CONTEXT_LEN-i,0],[0,0]]),
+                                  lambda : tf.slice(fact_mat_emb,[i-self.CONTEXT_LEN,0],[self.CONTEXT_LEN,self.VEC_SIZE]),name="get_context")
 
-            U_CONTEXT_GEN  =  tf.reshape(tf.matmul(U_GEN,tf.reshape(content_mat,[-1,1])),[-1])
-            CONTEXT_ATTEN  =  tf.reshape(tf.matmul(U_ATTEN,tf.reshape(content_mat,[-1,1])),[-1])
+            U_CONTEXT_GEN  =  tf.reshape(tf.matmul(U_GEN,tf.reshape(content_mat,[-1,1])),[-1],name='U_CONTEXT_GEN')
+            CONTEXT_ATTEN  =  tf.reshape(tf.matmul(U_ATTEN,tf.reshape(content_mat,[-1,1])),[-1],name='CONTEXT_ATTEN')
 
 
 
@@ -143,6 +143,7 @@ class gated_evidence_fact_generation(Base_model):
             }
             true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
 
+            # tf.matmul(evid_mat,attention_var_gate)
             def _step(j,_step_input):
 
                 gate_value = _step_input['gate_value']
@@ -177,7 +178,12 @@ class gated_evidence_fact_generation(Base_model):
                 if mode == 'train':
                     content_vec = tf.reshape(content_vec,[-1,1])
                     W_ENC = tf.reshape(tf.matmul(W_GEN,content_vec),[-1])
-                    dis_v = W_ENC+U_CONTEXT_GEN+GEN_b
+                    print(W_ENC)
+                    print(U_CONTEXT_GEN)
+                    print(GEN_b)
+                    dis_v = tf.reduce_sum([W_ENC,U_CONTEXT_GEN,GEN_b],axis=0, name='dis_add_1')
+                    # dis_v = tf.add(dis_v,GEN_b,name='dis_add_2')
+                    # dis_v = W_ENC
                     loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=dis_v,labels= true_l, name='Cross_entropy')
                     char_most_pro = tf.cast(tf.argmax(dis_v), tf.int32)
                     loss_res_ta = loss_res_ta.write(j,loss)
@@ -255,14 +261,14 @@ class gated_evidence_fact_generation(Base_model):
             # tf.summary.histogram("DIS_V",dis_v[:fact_len])
             grads = adam.compute_gradients(nll)
 
-            # for var in tf.trainable_variables():
-            #     tf.summary.histogram(var.name, var)
-            # # 使用直方图记录梯度
-            # for i,(grad, var) in enumerate(grads):
-            #     if grad is not None:
-            #     #     grads[i] = (tf.clip_by_norm(grad,5),var)
-            #     # tf.summary.histogram(var.name + '/gradient', grads[i])
-            #         tf.summary.histogram(var.name + '/gradient', grad)
+            for var in tf.trainable_variables():
+                tf.summary.histogram(var.name, var)
+            # 使用直方图记录梯度
+            for i,(grad, var) in enumerate(grads):
+                if grad is not None:
+                #     grads[i] = (tf.clip_by_norm(grad,5),var)
+                # tf.summary.histogram(var.name + '/gradient', grads[i])
+                    tf.summary.histogram(var.name + '/gradient', grad)
 
             t_op = adam.apply_gradients(grads)
         else:
@@ -291,7 +297,7 @@ class gated_evidence_fact_generation(Base_model):
     def train_fun(self,sess,data_gen,ops,global_step):
         evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
 
-        output_seq, nll,acc,gate_value,ml_index,merge,evid_sig,_ = sess.run(
+        output_seq, nll,acc,gate_value,ml_index,merge,_ = sess.run(
             [ops['output_seq'],
              ops['nll'],
              ops['accuracy'],
@@ -308,8 +314,8 @@ class gated_evidence_fact_generation(Base_model):
                        ops['global_step']:global_step
             }
             )
-        for i in evid_sig:
-            print(i)
+        # for i in evid_sig:
+        #     print(i)
         # for i in dis_v:
         #     max_i = np.argmax(i)
         #     max_v = i[max_i]
