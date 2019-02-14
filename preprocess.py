@@ -103,7 +103,8 @@ class Preprocessor:
             if cut_size != None:
                 if index_arr[i] > 1:
                     res+=(self.N2GRAM[index_arr[i]])
-
+                if len(res)>cut_size:
+                    break
             else:
                 if index_arr[i] != 1:
                    res+=(self.N2GRAM[index_arr[i]])
