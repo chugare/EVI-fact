@@ -97,13 +97,18 @@ class Preprocessor:
             count+=1
             dic_file.write('%s %d\n' % (i, self.GRAM2N[i]))
 
-    def get_sentence(self, index_arr):
+    def get_sentence(self, index_arr,cut_size = None):
         res = ''
         for i in range(len(index_arr)):
-            if index_arr[i] != 1:
-               res+=(self.N2GRAM[index_arr[i]])
+            if cut_size != None:
+                if index_arr[i] > 1:
+                    res+=(self.N2GRAM[index_arr[i]])
+
             else:
-                break
+                if index_arr[i] != 1:
+                   res+=(self.N2GRAM[index_arr[i]])
+                else:
+                    break
 
         return res
     def get_char_list(self, index_arr):

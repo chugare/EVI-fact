@@ -193,8 +193,9 @@ def valid_protype(meta):
                     inter_res = m.inter_fun(sess,data_gen,ops)
                     out_seq = inter_res['out_seq']
                     fact_seq = inter_res['fact_seq']
-                    out_sen = p.get_sentence(out_seq)
+
                     fact_sen = p.get_sentence(fact_seq)
+                    out_sen = p.get_sentence(out_seq,len(fact_sen))
                     if len(out_sen) < len(fact_sen):
                         out_sen = out_sen[:len(fact_sen)]
 
