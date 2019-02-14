@@ -20,6 +20,8 @@ dg = npk.data_provider('train_data.json',{
         'MFL':GEFG.MAX_FACT_LEN,
         'BATCH_SIZE':1
     })
+
+tf.nn.dynamic_rnn()
 m1 = tf.placeholder(dtype=tf.float32,shape=[5,3,4])
 m2 = tf.placeholder(dtype=tf.float32,shape=[1,3,4])
 r1 = m1

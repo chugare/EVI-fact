@@ -113,7 +113,7 @@ def train_protype(meta):
                         total_cost = cur_time-start_time
                         if global_step % 100 == 0:
                             train_writer.add_summary(merge,global_step)
-                            logger.write_log([global_step/10,loss,total_cost])
+                            # logger.write_log([global_step/10,loss,total_cost])
                         print('[INFO] Batch %d 训练结果：LOSS=%.2f ACCURACY:%.2f 用时: %.2f 共计用时 %.2f' % (batch_count, loss,acc,time_cost,total_cost))
 
                         # print('[INFO] Batch %d'%batch_count)

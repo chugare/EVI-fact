@@ -114,11 +114,20 @@ class gated_evidence_fact_generation(Base_model):
         def _decoder_step(i, generated_seq, _gate_value,_min_loss_index, nll):
 
 
-
-            content_mat = tf.cond(tf.less(i,self.CONTEXT_LEN),
+            if mode == 'train':
+                content_mat = tf.cond(tf.less(i,self.CONTEXT_LEN),
                                   lambda : tf.pad(tf.slice(fact_mat_emb,[0,0],[i,self.VEC_SIZE]),[[self.CONTEXT_LEN-i,0],[0,0]]),
                                   lambda : tf.slice(fact_mat_emb,[i-self.CONTEXT_LEN,0],[self.CONTEXT_LEN,self.VEC_SIZE]),name="get_context")
+            else:
 
+                genseq = tf.cond(tf.equal(i,0),
+                                 lambda : tf.zeros([self.MAX_FACT_LEN],dtype=tf.int32),
+                                 lambda : tf.reshape(generated_seq.stack(),[-1])
+                                 )
+                fact_mat_emb = tf.nn.embedding_lookup(params=embedding_t,ids=genseq)
+                content_mat = tf.cond(tf.less(i,self.CONTEXT_LEN),
+                                      lambda : tf.pad(tf.slice(fact_mat_emb,[0,0],[i,self.VEC_SIZE]),[[self.CONTEXT_LEN-i,0],[0,0]]),
+                                      lambda : tf.slice(fact_mat_emb,[i-self.CONTEXT_LEN,0],[self.CONTEXT_LEN,self.VEC_SIZE]),name="get_context")
             U_CONTEXT_GEN  =  tf.reshape(tf.matmul(U_GEN,tf.reshape(content_mat,[-1,1])),[-1],name='U_CONTEXT_GEN')
             CONTEXT_ATTEN  =  tf.reshape(tf.matmul(U_ATTEN,tf.reshape(content_mat,[-1,1])),[-1],name='CONTEXT_ATTEN')
 
@@ -134,6 +143,7 @@ class gated_evidence_fact_generation(Base_model):
                                               name='CHAR_PRO_LOOP', tensor_array_name='CHAR_PRO_LP_TA')
             # 在训练的时候，由于每一个证据的关联性都不确定，所以我想把从每一个证据生成的新数据内容都进行训练和梯度下降
 
+
             _step_input = {
                 'gate_value':gate_value,
                 'attention_vec_evid':attention_vec_evid,
@@ -141,7 +151,8 @@ class gated_evidence_fact_generation(Base_model):
                 'char_most_pro_ta':char_most_pro_ta
 
             }
-            true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
+            if mode == 'train':
+                true_l = tf.one_hot(fact_mat[i], depth=self.MAX_VOCA_SZIE)
 
             # tf.matmul(evid_mat,attention_var_gate)
             def _step(j,_step_input):
@@ -231,7 +242,9 @@ class gated_evidence_fact_generation(Base_model):
                 _gate_value = _gate_value.write(i, gate_index)
                 # 生成的时候使用的是单层的lstm网络，每一个时间步生成一个向量，把这个向量放入全连接网络得到生成单词的分布
                 content_vec = attention_vec_evid.read(gate_index)
+                content_vec = tf.reshape(content_vec,[-1,1])
                 W_ENC = tf.matmul(W_GEN, content_vec)
+                W_ENC = tf.reshape(W_ENC,[-1])
                 dis_v = W_ENC + U_CONTEXT_GEN + GEN_b
                 char_most_pro = tf.argmax(dis_v)
                 generated_seq = generated_seq.write(i, tf.cast(char_most_pro,tf.int32))
@@ -245,6 +258,7 @@ class gated_evidence_fact_generation(Base_model):
                                                                  name='generate_word_loop')
 
         gate_value = gate_value.stack()
+        # print(gate_value)
         tf.summary.histogram(name='GATE',values=gate_value)
         min_loss_index = min_loss_index.stack()
         if mode=='train':
