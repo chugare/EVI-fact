@@ -122,7 +122,7 @@ class gated_evidence_fact_generation(Base_model):
 
                 genseq = tf.cond(tf.equal(i,0),
                                  lambda : tf.zeros([self.MAX_FACT_LEN],dtype=tf.int32),
-                                 lambda : tf.reshape(generated_seq.stack(),[-1])
+                                 lambda : tf.reshape(generated_seq.gather(tf.range(0,i)),[-1])
                                  )
                 fact_mat_emb = tf.nn.embedding_lookup(params=embedding_t,ids=genseq)
                 content_mat = tf.cond(tf.less(i,self.CONTEXT_LEN),
