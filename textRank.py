@@ -4,9 +4,7 @@ import json
 import math
 import numpy as np
 import re
-
-def lead():
-
+import Evaluate
 
 class extractSummary:
     def readJSONDoc_id(self,doc_name):
@@ -38,6 +36,8 @@ class extractSummary:
                 for w in evid:
                     if w in self.GRAM2N:
                         evid_id.append(self.GRAM2N[w])
+                if len(evid_id)<1:
+                    continue
                 evid_ids.append(evid_id)
             # self.evids += evids
             yield fact_id,evid_ids
@@ -70,13 +70,19 @@ class extractSummary:
             for w2 in sen2:
                 if w1 == w2:
                     s_c += 1
-        return float(s_c)/(math.log(len(sen1))+math.log(len(sen2)))
-    def lead(self,evid):
+        try:
+            res = float(s_c)/(math.log(len(sen1))+math.log(len(sen2))+0.1)
+        except ZeroDivisionError:
+            print(sen1)
+            print(sen2)
+
+    def lead(self,doc_g):
         for fact,evids in doc_g:
             res = ''
             for e in evids:
                 lead = str(e).split('，')[0]
                 res+=lead
+
             yield fact,res
     def lexRank(self,doc_g):
         for fact,evids in doc_g:
@@ -143,13 +149,23 @@ class extractSummary:
                 res += es.id2sen(evids[ids])
             yield self.id2sen(fact),res
 
-
-
+def Eval_with_generator(gen):
+    res_table  = []
+    for ref_sen,gen_sen in gen:
+        try:
+            res = Evaluate.ROUGE_eval(ref_sen,gen_sen)
+            res_table.append(res)
+        except ValueError:
+            pass
+    Evaluate.do_eval(res_table)
 
 if __name__ == '__main__':
     es = extractSummary()
     doc_g_id = es.readJSONDoc_id('test_data.json')
     doc_g_char = es.readJSONDoc_char('test_data.json')
-    es.textRank(doc_g_id)
+
+    ldg = es.lead(doc_g=doc_g_char)
+    trg = es.textRank(doc_g_id)
+    Eval_with_generator(trg)
 
 

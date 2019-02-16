@@ -26,10 +26,8 @@ def ROUGE_eval_(standard_sen,generated_sen):
     res = r.get_scores(generated_sen,standard_sen)
     return res
 
-def do_eval(fname):
-    jsfile = open(fname,'r',encoding='utf-8')
+def do_eval(res):
 
-    res = json.load(jsfile)
     sum = res[0][0]
     c = 0
     for r in res:
@@ -94,5 +92,9 @@ def gate_value_report_write(fname,evids_ids,fact_ids,gate_v):
 
 
 if __name__ == '__main__':
-    do_eval(sys.argv[1])
+
+    jsfile = open(sys.argv[1],'r',encoding='utf-8')
+
+    res = json.load(jsfile)
+    do_eval(res)
 
