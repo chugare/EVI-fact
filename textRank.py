@@ -148,7 +148,8 @@ class extractSummary:
 
 if __name__ == '__main__':
     es = extractSummary()
-    doc_g = es.readJSONDoc_id('train_data.json')
-
+    doc_g_id = es.readJSONDoc_id('test_data.json')
+    doc_g_char = es.readJSONDoc_char('test_data.json')
+    es.textRank(doc_g_id)
 
 
