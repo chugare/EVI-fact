@@ -164,14 +164,13 @@ class gated_evidence_fact_generation(Base_model):
         # tf.summary.histogram('FACT',fact_mat)
         def _decoder_step(i, generated_seq, _gate_value,_min_loss_index, nll):
 
-            content_mat = tf.cond(tf.less(i, self.CONTEXT_LEN),
+            if mode == 'train':
+                content_mat = tf.cond(tf.less(i, self.CONTEXT_LEN),
                                   lambda: tf.pad(tf.slice(fact_mat_emb, [0, 0], [i, self.VEC_SIZE]),
                                                  [[self.CONTEXT_LEN - i, 0], [0, 0]]),
                                   lambda: tf.slice(fact_mat_emb, [i - self.CONTEXT_LEN, 0],
                                                    [self.CONTEXT_LEN, self.VEC_SIZE]), name="get_context")
-
-            if mode != 'train':
-
+            else:
                 genseq = tf.cond(tf.equal(i,0),
                                  lambda : tf.zeros([self.MAX_FACT_LEN],dtype=tf.int32),
                                  lambda : tf.reshape(generated_seq.gather(tf.range(0,i)),[-1])
@@ -220,12 +219,13 @@ class gated_evidence_fact_generation(Base_model):
                 gate_v = tf.matmul(word_vec_seq, attention_var_gate) * CONTEXT_ATTEN
                 gate_m = tf.reduce_sum(gate_v,1)
                 gate_m = tf.nn.softmax(gate_m)
-                max_word = tf.argmax(gate_m)
-                # gate_m = tf.reshape(gate_m,[1,-1])
-                #
-                # gate_v = tf.reshape(tf.matmul(gate_m, word_vec_seq),[-1])
-                # gate_v = tf.nn.l2_normalize(gate_v)
-                gate_v = word_vec_seq[max_word]
+
+                gate_m = tf.reshape(gate_m,[1,-1])
+
+                gate_v = tf.reshape(tf.matmul(gate_m, word_vec_seq),[-1])
+                gate_v = tf.nn.l2_normalize(gate_v)
+                # max_word = tf.argmax(gate_m)
+                # gate_v = word_vec_seq[max_word]
                 gate_v = tf.reduce_mean(gate_v*gate_fc_w)
 
                 align = tf.matmul(word_vec_seq, attention_var_gen) * CONTEXT_ATTEN
