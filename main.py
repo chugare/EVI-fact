@@ -24,11 +24,18 @@ class log_train:
         if t == None:
             t = datetime.datetime.now().strftime("%Y%m%d_%H-%M-%S")
         name = "./%s/%s_"%(name,name)+t
-
+        self.filename = name
         self.log_file = open(name,'w',encoding='utf-8')
     def write_log(self,data_list):
         data_list = [str(i) for i in data_list]
         self.log_file.write('\t'.join(data_list)+'\n')
+    def write_exception(self,e):
+        self.log_file.write(e)
+    def flush(self):
+        self.log_file.close()
+        self.log_file = open(self.filename,'a',encoding='utf-8')
+    def close(self):
+        self.log_file.close()
 class log_eval:
     def __init__(self, name, t=None):
         if not os.path.exists(name):

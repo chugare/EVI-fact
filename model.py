@@ -42,7 +42,40 @@ class gated_evidence_fact_generation(Base_model):
         self.CONTEXT_LEN = 20
         self.HIDDEN_SIZE = 300
 
+    def get_cells(self):
+        fw_cell = tf.nn.rnn_cell.BasicLSTMCell(self.NUM_UNIT)
+        bw_cell = tf.nn.rnn_cell.BasicLSTMCell(self.NUM_UNIT)
 
+        return [fw_cell, bw_cell]
+
+    @staticmethod
+    def BiLSTMencoder(cells, input_vec, seqLength, state=None):
+        fw_cell = cells[0]
+        bw_cell = cells[1]
+
+        __batch_size = 1
+        seqLength = tf.reshape(seqLength, [1])
+        if state is None:
+            init_state_fw = fw_cell.zero_state(__batch_size, tf.float32)
+            init_state_bw = bw_cell.zero_state(__batch_size, tf.float32)
+        elif len(state) == 2:
+            init_state_bw = state[1]
+            init_state_fw = state[0]
+        else:
+            print('[INFO] Require state with size 2')
+
+        input_vec = tf.reshape(input_vec, [1, input_vec.shape[0], input_vec.shape[1]])
+        output, en_states = tf.nn.bidirectional_dynamic_rnn(cell_fw=fw_cell,
+                                                            cell_bw=bw_cell,
+                                                            inputs=input_vec,
+                                                            sequence_length=seqLength,
+                                                            initial_state_fw=init_state_fw,
+                                                            initial_state_bw=init_state_bw)
+
+        output = tf.concat(output, 2)
+        state = tf.concat(en_states, 2)[0]
+
+        return output, state
     def build_model(self, mode):
 
         # encoder part
@@ -64,15 +97,33 @@ class gated_evidence_fact_generation(Base_model):
 
         fact_mat_emb = tf.nn.embedding_lookup(embedding_t, fact_mat)
 
-        # 可以设置直接从已有的词向量读入
+ # 可以设置直接从已有的词向量读入
         if self.OH_ENCODER:
             evid_mat = tf.one_hot(evid_mat_r,self.MAX_VOCA_SZIE)
         else:
             evid_mat = tf.nn.embedding_lookup(embedding_t, evid_mat_r)
 
+        cells = self.get_cells()
+
+        def _encoder_evid(i, _state_ta, _output_ta):
+            output, state = gated_evidence_fact_generation.BiLSTMencoder(cells, evid_mat[i], evid_len[i])
+            _state_ta = _state_ta.write(i, state)
+            _output_ta = _output_ta.write(i, output)
+
+            i = tf.add(i, 1)
+            return i, _state_ta, _output_ta
+
+        state_ta = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False, name='encoder_state_SEQ',
+                                  tensor_array_name='ENC_STATE_TA')
+        output_ta = tf.TensorArray(dtype=tf.float32, size=evid_count, clear_after_read=False, name='encoder_output_SEQ',
+                                   tensor_array_name='ENC_OUT_TA')
+        i = tf.constant(1)
+        _, state_ta, output_ta = tf.while_loop(lambda i, state_ta, output_ta: i < evid_count, _encoder_evid,
+                                               (i, state_ta, output_ta), name='get_lstm_encoder')
+
         output_seq = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='OUTPUT_SEQ',tensor_array_name='OUTPUT_SQ_TA')
 
-        gate_fc_w = tf.get_variable('gate',shape=[self.VEC_SIZE],dtype=tf.float32,
+        gate_fc_w = tf.get_variable('gate',shape=[self.VEC_SIZE*2],dtype=tf.float32,
                                     initializer=tf.glorot_normal_initializer())
         loss_array = tf.TensorArray(dtype=tf.float32, size=self.MAX_FACT_LEN, clear_after_read=False,name='LOSS_COLLECTION',tensor_array_name='LOSS_TA')
         e_lr = tf.train.exponential_decay(self.LR, global_step=global_step, decay_steps=self.DECAY_STEP,
@@ -83,11 +134,11 @@ class gated_evidence_fact_generation(Base_model):
         min_loss_index = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
         #选择机制所使用的attention向量
         attention_var_gate = tf.get_variable('attention_sel', dtype=tf.float32,
-                                             shape=[self.VEC_SIZE, self.HIDDEN_SIZE],
+                                             shape=[self.VEC_SIZE*2, self.HIDDEN_SIZE],
                                              initializer=tf.glorot_normal_initializer())
         #生成器所使用的attention向量
         attention_var_gen = tf.get_variable('attention_gen', dtype=tf.float32,
-                                            shape=[ self.VEC_SIZE,self.HIDDEN_SIZE],
+                                            shape=[ self.VEC_SIZE*2,self.HIDDEN_SIZE],
                                             initializer=tf.glorot_normal_initializer())
         #用于神经语言模型的生成器的向量
         U_GEN = tf.get_variable('U_GEN', dtype=tf.float32,
@@ -103,7 +154,7 @@ class gated_evidence_fact_generation(Base_model):
 
         #
         W_GEN = tf.get_variable('W_GEN', dtype=tf.float32,
-                                            shape=[self.MAX_VOCA_SZIE,self.VEC_SIZE],
+                                            shape=[self.MAX_VOCA_SZIE,self.VEC_SIZE*2],
                                             initializer=tf.glorot_normal_initializer())
 
         #
@@ -113,21 +164,22 @@ class gated_evidence_fact_generation(Base_model):
         # tf.summary.histogram('FACT',fact_mat)
         def _decoder_step(i, generated_seq, _gate_value,_min_loss_index, nll):
 
+            content_mat = tf.cond(tf.less(i, self.CONTEXT_LEN),
+                                  lambda: tf.pad(tf.slice(fact_mat_emb, [0, 0], [i, self.VEC_SIZE]),
+                                                 [[self.CONTEXT_LEN - i, 0], [0, 0]]),
+                                  lambda: tf.slice(fact_mat_emb, [i - self.CONTEXT_LEN, 0],
+                                                   [self.CONTEXT_LEN, self.VEC_SIZE]), name="get_context")
 
-            if mode == 'train':
-                content_mat = tf.cond(tf.less(i,self.CONTEXT_LEN),
-                                  lambda : tf.pad(tf.slice(fact_mat_emb,[0,0],[i,self.VEC_SIZE]),[[self.CONTEXT_LEN-i,0],[0,0]]),
-                                  lambda : tf.slice(fact_mat_emb,[i-self.CONTEXT_LEN,0],[self.CONTEXT_LEN,self.VEC_SIZE]),name="get_context")
-            else:
+            if mode != 'train':
 
                 genseq = tf.cond(tf.equal(i,0),
                                  lambda : tf.zeros([self.MAX_FACT_LEN],dtype=tf.int32),
                                  lambda : tf.reshape(generated_seq.gather(tf.range(0,i)),[-1])
                                  )
-                fact_mat_emb = tf.nn.embedding_lookup(params=embedding_t,ids=genseq)
+                last_word_emb = tf.nn.embedding_lookup(params=embedding_t,ids=genseq)
                 content_mat = tf.cond(tf.less(i,self.CONTEXT_LEN),
-                                      lambda : tf.pad(tf.slice(fact_mat_emb,[0,0],[i,self.VEC_SIZE]),[[self.CONTEXT_LEN-i,0],[0,0]]),
-                                      lambda : tf.slice(fact_mat_emb,[i-self.CONTEXT_LEN,0],[self.CONTEXT_LEN,self.VEC_SIZE]),name="get_context")
+                                      lambda : tf.pad(tf.slice(last_word_emb,[0,0],[i,self.VEC_SIZE]),[[self.CONTEXT_LEN-i,0],[0,0]]),
+                                      lambda : tf.slice(last_word_emb,[i-self.CONTEXT_LEN,0],[self.CONTEXT_LEN,self.VEC_SIZE]),name="get_context")
             U_CONTEXT_GEN  =  tf.reshape(tf.matmul(U_GEN,tf.reshape(content_mat,[-1,1])),[-1],name='U_CONTEXT_GEN')
             CONTEXT_ATTEN  =  tf.reshape(tf.matmul(U_ATTEN,tf.reshape(content_mat,[-1,1])),[-1],name='CONTEXT_ATTEN')
 
@@ -163,7 +215,7 @@ class gated_evidence_fact_generation(Base_model):
                 char_most_pro_ta = _step_input['char_most_pro_ta']
 
 
-                word_vec_seq = evid_mat[j][0:evid_len[j]]
+                word_vec_seq = output_ta.read(j)[0][0:evid_len[j]]
 
                 gate_v = tf.matmul(word_vec_seq, attention_var_gate) * CONTEXT_ATTEN
                 gate_m = tf.reduce_sum(gate_v,1)
