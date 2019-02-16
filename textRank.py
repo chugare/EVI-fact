@@ -5,6 +5,7 @@ import math
 import numpy as np
 import re
 
+def lead():
 
 
 class textRank:
