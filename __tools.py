@@ -82,18 +82,26 @@ def read_from_gate_report():
                             print("中断，退出")
                             return
                         print("输入最合适证据的编号")
-                        inp = int(input())
+                        try:
+                            inp = int(input())
+                        except ValueError:
+                            inp = 0
                         label.append(int(inp))
                     inp = 999
                     while inp < 0 or inp > len(evid):
                         print("输入备选证据的编号")
-                        inp = int(input())
+                        try:
+                            inp = int(input())
+                        except ValueError:
+                            inp = 0
                         label.append(int(inp))
                     inp = 999
                     while inp < 0 or inp > len(evid):
                         print("输入备选适证据的编号")
-                        inp = int(input())
-
+                        try:
+                            inp = int(input())
+                        except ValueError:
+                            inp = 0
                         label.append(int(inp))
                     c = {
                         'fact':fact,
