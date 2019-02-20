@@ -158,6 +158,7 @@ def Eval_with_generator(gen):
         except ValueError:
             pass
     Evaluate.do_eval(res_table)
+def calc_tfidf():
 
 if __name__ == '__main__':
     es = extractSummary()
