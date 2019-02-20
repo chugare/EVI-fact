@@ -125,8 +125,8 @@ def analyse_gate_res():
     data = json.load(jsfile)
     num = data['num']
     Case = data['case']
-    prec = 0
-    recall = 0
+    prec_1 = 0.0
+    prec_3 = 0.0
     for c in Case:
         m = c['evid_w'][0]
         im = 0
@@ -135,8 +135,11 @@ def analyse_gate_res():
                 m = c['evid_w'][i]
                 im = i
         if im == c['label'][0]:
-            prec+=1
+            prec_1+=1
         if im in c['label']:
-            recall+=1
+            prec_3+=1
+    print(prec_1/100)
+    print(prec_3/100)
 if __name__ == '__main__':
-    read_from_gate_report()
+    analyse_gate_res()
+    # read_from_gate_report()
