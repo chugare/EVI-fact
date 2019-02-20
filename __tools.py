@@ -120,6 +120,23 @@ def read_from_gate_report():
                 evid_w = []
                 fact_w = []
                 label = []
-
+def analyse_gate_res():
+    jsfile = open('gate_report_label.json','r',encoding='utf-8')
+    data = json.load(jsfile)
+    num = data['num']
+    Case = data['case']
+    prec = 0
+    recall = 0
+    for c in Case:
+        m = c['evid_w'][0]
+        im = 0
+        for i in range(len(c['evid_w'])):
+            if m< c['evid_w'][i]:
+                m = c['evid_w'][i]
+                im = i
+        if im == c['label'][0]:
+            prec+=1
+        if im in c['label']:
+            recall+=1
 if __name__ == '__main__':
     read_from_gate_report()
