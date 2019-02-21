@@ -127,6 +127,8 @@ def t_generate_tfidf():
     case = gdt['case']
     num = gdt['num']
     prec = 0
+    cosim_sum = 0.0
+    cosim_c = 0
     for c in case:
         m = c['evid_w'][0]
         im = 0
@@ -140,6 +142,7 @@ def t_generate_tfidf():
 
         fact_vec = t.tf_calc(jieba.lcut(f))
         cos_sim = []
+
         for i  in range(len(c['evid'])):
             e = c['evid'][i]
             e_vec = t.tf_calc(jieba.lcut(e))
@@ -157,8 +160,12 @@ def t_generate_tfidf():
         im_cos_sim = cos_sim.index(max(cos_sim))
         # dif = calc_seq_diff(cos_sim,evid_w)
         llss = evid_w[im_cos_sim]/float(len(f))
+        cosim_sum += np.sum(np.array(cos_sim))
+        cosim_c += len(cos_sim)
         prec+=llss
         print(llss)
+    print("=============")
+    print(cosim_sum/cosim_c)
     print(prec/num)
 
 def calc_seq_diff(seq1,seq2):
