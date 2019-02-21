@@ -22,7 +22,17 @@ rouge-l f : 0.119834
 rouge-l p : 0.377242
 rouge-l r : 0.114837
 """
-
+str_tf = """
+rouge-1 f : 0.360081
+rouge-1 p : 0.493096
+rouge-1 r : 0.300445
+rouge-2 f : 0.135751
+rouge-2 p : 0.188890
+rouge-2 r : 0.115071
+rouge-l f : 0.167297
+rouge-l p : 0.257138
+rouge-l r : 0.160398
+"""
 def divide_result(str1):
     ls = str1.split('\n')
     name = []
@@ -35,6 +45,7 @@ def divide_result(str1):
         res.append(k[-1])
     print('\n'.join(name))
     print('\n'.join(res))
+
 
 def read_from_gate_report():
     file = open('Gate_report.txt','r',encoding='utf-8')
@@ -140,6 +151,12 @@ def analyse_gate_res():
             prec_3+=1
     print(prec_1/100)
     print(prec_3/100)
+
+
+    print(path)
 if __name__ == '__main__':
-    analyse_gate_res()
+
+    ana_vec()
+    # divide_result(str_tf)
+    # analyse_gate_res()
     # read_from_gate_report()

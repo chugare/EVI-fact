@@ -15,7 +15,41 @@ import re
 import json
 import pkuseg
 import sys
+from sklearn.metrics.pairwise import cosine_distances
+class WORD_VEC:
+    def __init__(self):
+        self.vec_dic = {}
+        self.word_list = []
+        self.vec_list = []
+        self.num = {}
+        print('[INFO] Start load word vector')
+        self.read_vec()
+    def read_vec(self):
+        path = os.path.abspath('.')
+        path = '/'.join(path.split('/')[:-1])+'/sgns.merge.char'
+        vec_file = open(path,'r',encoding='utf-8')
+        meg = next(vec_file).split(' ')
+        num = int(meg[0])
+        count = 0
+        for l in vec_file:
+            print(l)
+            m = l.split(' ')
+            w = m[0]
+            vec =[float(v) for v in m[1:]]
+            count+=1
+            if count%1000 == 0:
+                p = float(count)/num
+                print('[INFO] Load vec data ,%f finished'%p)
+            self.vec_list.append(vec)
+            self.word_list.append(w)
+            self.vec_dic[w] = np.array(vec,dtype=np.float32)
 
+    def get_min_word(self,word):
+        vec = self.vec_dic[word]
+        dis = cosine_distances(self.vec_list,[vec])
+        dis = np.reshape(dis,[-1])
+        i = np.argmax(dis)
+        print(self.word_list[i])
 class Preprocessor:
     def __init__(self,SEG_BY_WORD = True):
         self.SEG_BY_WORD = SEG_BY_WORD
