@@ -23,14 +23,18 @@ class WORD_VEC:
         self.vec_dic = {}
         self.word_list = []
         self.vec_list = []
-        self.num = {}
+        self.num = 0
         print('[INFO] Start load word vector')
         self.read_vec()
         self.seg = pkuseg.pkuseg()
-    def dump_bifile(self):
-        bifile  = open('word_vec.bin','wb')
-        a = struct.pack('B',self.vec_dic)
-        bifile.write(a)
+    def dump_file(self):
+        file = open('word_vec.char','w',encoding='utf-8')
+        file.write(str(self.num)+' 300\n')
+        for w in self.vec_dic:
+            vec_f = [str(i) for i in self.vec_dic[w]]
+            vec_str = ' '.join(vec_f)
+            file.write(w+' '+vec_str+'\n')
+        file.close()
     @staticmethod
     def ulw(word):
         pattern = [
@@ -52,6 +56,7 @@ class WORD_VEC:
         vec_file = open(filename,'r',encoding='utf-8')
         meg = next(vec_file).split(' ')
         num = int(meg[0])
+
         count = 0
         vec_dic = {}
         for l in vec_file:
@@ -69,11 +74,14 @@ class WORD_VEC:
     def read_vec(self):
         path = os.path.abspath('.')
         print(path)
-        # path = '/'.join(path.split('\\')[:-1])+'/word_vec/sgns.merge.char'
-        path = 'F:/python/word_vec/sgns.merge.char'
+        path = '/'.join(path.split('\\')[:-1])+'/sgns.merge.char'
+        # path = 'F:/python/word_vec/sgns.merge.char'
+        # path = 'D:\\赵斯蒙\\EVI-fact\\word_vec.char'
+
         vec_file = open(path,'r',encoding='utf-8')
         meg = next(vec_file).split(' ')
         num = int(meg[0])
+        self.num = num
         count = 0
         for l in vec_file:
 
@@ -87,12 +95,13 @@ class WORD_VEC:
             if count%10000 == 0:
                 p = float(count)/num*100
                 sys.stdout.write('\r[INFO] Load vec data, %.2f%% finished'%p)
-            if count == 10000:
-                break
+            # if count == 10000:
+            #     break
             self.vec_list.append(vec)
             self.word_list.append(w)
             self.vec_dic[w] = np.array(vec,dtype=np.float32)
 
+        self.num = count
     def get_min_word(self,word):
         vec = self.vec_dic[word]
         dis = cosine_similarity(self.vec_list,[vec])
@@ -376,5 +385,5 @@ def init():
     p.init_dic('RAW_DATA.json')
 if __name__ == '__main__':
     wv = WORD_VEC()
-
+    wv.dump_file()
     # WORD_VEC.clear_ulw('/Users/simengzhao/Documents/Python/sgns.merge.char')
