@@ -15,7 +15,8 @@ import re
 import json
 import pkuseg
 import sys
-from sklearn.metrics.pairwise import cosine_distances
+import os
+from sklearn.metrics.pairwise import cosine_similarity
 class WORD_VEC:
     def __init__(self):
         self.vec_dic = {}
@@ -24,32 +25,64 @@ class WORD_VEC:
         self.num = {}
         print('[INFO] Start load word vector')
         self.read_vec()
+        self.seg = pkuseg.pkuseg()
+
+    def ulw(self,w):
+        pattern = [
+            r'[,.\(\)（），。\-\+\*/\\]{2,}',
+            r'\d+',
+            r'[qwertyuiopasdfghjklzxcvbnm]+',
+            r'[QWERTYUIOPASDFGHJKLZXCVBNM]+',
+        ]
+        open('uslw.txt','a',encoding='utf-8')
+        for p in pattern:
+            mr = re.match(p,w)
+            if mr is not None:
+
+                return True
+
     def read_vec(self):
         path = os.path.abspath('.')
-        path = '/'.join(path.split('/')[:-1])+'/sgns.merge.char'
+        print(path)
+        # path = '/'.join(path.split('\\')[:-1])+'/word_vec/sgns.merge.char'
+        path = 'F:/python/word_vec/sgns.merge.char'
         vec_file = open(path,'r',encoding='utf-8')
         meg = next(vec_file).split(' ')
         num = int(meg[0])
         count = 0
         for l in vec_file:
-            print(l)
-            m = l.split(' ')
+
+            m = l.strip().split(' ')
             w = m[0]
+            vec = m[1:]
             vec =[float(v) for v in m[1:]]
+            self.ulw(w)
             count+=1
-            if count%1000 == 0:
-                p = float(count)/num
-                print('[INFO] Load vec data ,%f finished'%p)
+            if count%10000 == 0:
+                p = float(count)/num*100
+                sys.stdout.write('\r[INFO] Load vec data, %.2f%% finished'%p)
+            if count == 10000:
+                break
             self.vec_list.append(vec)
             self.word_list.append(w)
             self.vec_dic[w] = np.array(vec,dtype=np.float32)
 
     def get_min_word(self,word):
         vec = self.vec_dic[word]
-        dis = cosine_distances(self.vec_list,[vec])
+        dis = cosine_similarity(self.vec_list,[vec])
         dis = np.reshape(dis,[-1])
+        dis_pair = [(i,dis[i]) for i in range(len(dis))]
+        dis_pair.sort(key= lambda x:x[1],reverse=True)
+        for i in range(10):
+            print(self.word_list[dis_pair[i][0]])
+
+    def get_min_word_v(self, vec):
+        dis = cosine_similarity(self.vec_list, [vec])
+        dis = np.reshape(dis, [-1])
         i = np.argmax(dis)
-        print(self.word_list[i])
+        return self.word_list[i]
+    def sen2vec(self,sen):
+        pass
 class Preprocessor:
     def __init__(self,SEG_BY_WORD = True):
         self.SEG_BY_WORD = SEG_BY_WORD
@@ -263,62 +296,7 @@ class Preprocessor:
                         art_vecs = []
                         y_vecs = []
                         yc_vecs = []
-        elif format_type =='Seg_OH':
 
-            # 将原始的证据分离输入，并且使用one-hot编码方式
-            # 输出格式为 一个数组表示所有的证据文本的one-hot编码，一个向量表示事实文本的one-hot编码
-            count = 0
-            try:
-                pass
-
-            except KeyError:
-                print('[ERROR] The meta data expected for data preparation required more info (require: C,V )')
-            art_vecs = []
-            y_vecs = []
-            yc_vecs = []
-            for res in res_gen:
-                evids = res['evid']
-                title = res['fact']
-                art_vec = self.Nencoder()
-                title_vec = self.Nencoder(title)
-
-                for p in range(len(title_vec)):
-                    art_vecs.append(art_vec)
-                    y_vecs.append(title_vec[p])
-                    yc_vecs.append(Preprocessor.context(title_vec, p, C))
-                    count += 1
-                    if count % batch_size == 0:
-                        yield art_vecs, yc_vecs, y_vecs
-                        art_vecs = []
-                        y_vecs = []
-                        yc_vecs = []
-        elif format_type =='Int_OH':
-            pass
-            count = 0
-            try:
-                V = meta['V']
-                C = meta['C']
-            except KeyError:
-                print('[ERROR] The meta data expected for data preparation required more info (require: C,V )')
-            art_vecs = []
-            y_vecs = []
-            for res in res_gen:
-                evids = res['evid']
-                title = res['fact']
-                article = ''
-                for e in evids:
-                    article += e
-                art_vec = self.Nencoder(article)
-                title_vec = self.Nencoder(title)
-
-                for p in range(len(title_vec)):
-                    art_vecs.append(art_vec)
-                    y_vecs.append(title_vec[p])
-                    count += 1
-                    if count % batch_size == 0:
-                        yield art_vecs, y_vecs
-                        art_vecs = []
-                        y_vecs = []
         elif format_type =='GEFG':
 
             # 将原始的证据分离输入，并且使用one-hot编码方式
@@ -367,8 +345,11 @@ class Preprocessor:
         else:
             print("[ERROR] Declaration of format type is required")
 def init():
+    print('[INFO] 初始化字典/词典')
     p = Preprocessor(True)
     p.init_dic('RAW_DATA.json')
 if __name__ == '__main__':
-    print('[INFO] 初始化字典/词典')
-    init()
+
+    wv = WORD_VEC()
+
+    wv.get_min_word('中国')
