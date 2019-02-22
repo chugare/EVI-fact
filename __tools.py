@@ -156,7 +156,6 @@ def analyse_gate_res():
     print(path)
 if __name__ == '__main__':
 
-    ana_vec()
     # divide_result(str_tf)
     # analyse_gate_res()
     # read_from_gate_report()

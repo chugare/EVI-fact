@@ -16,6 +16,7 @@ import json
 import pkuseg
 import sys
 import os
+import struct
 from sklearn.metrics.pairwise import cosine_similarity
 class WORD_VEC:
     def __init__(self):
@@ -26,21 +27,45 @@ class WORD_VEC:
         print('[INFO] Start load word vector')
         self.read_vec()
         self.seg = pkuseg.pkuseg()
-
-    def ulw(self,w):
+    def dump_bifile(self):
+        bifile  = open('word_vec.bin','wb')
+        a = struct.pack('B',self.vec_dic)
+        bifile.write(a)
+    @staticmethod
+    def ulw(word):
         pattern = [
             r'[,.\(\)（），。\-\+\*/\\]{2,}',
             r'\d+',
             r'[qwertyuiopasdfghjklzxcvbnm]+',
             r'[QWERTYUIOPASDFGHJKLZXCVBNM]+',
         ]
-        open('uslw.txt','a',encoding='utf-8')
+        ulwf = open('uslw.txt','a',encoding='utf-8')
         for p in pattern:
-            mr = re.match(p,w)
+            mr = re.match(p,word)
             if mr is not None:
-
+                ulwf.write(word+'\n')
+                ulwf.close()
                 return True
+        return  False
+    @staticmethod
+    def clear_ulw(filename):
+        vec_file = open(filename,'r',encoding='utf-8')
+        meg = next(vec_file).split(' ')
+        num = int(meg[0])
+        count = 0
+        vec_dic = {}
+        for l in vec_file:
+            m = l.strip().split(' ')
+            w = m[0]
+            vec =[float(v) for v in m[1:]]
+            if WORD_VEC.ulw(w):
+                continue
+            count+=1
+            if count%10000 == 0:
+                p = float(count)/num*100
+                sys.stdout.write('\r[INFO] Load vec data, %.2f%% finished'%p)
 
+                # vec_dic[w] = vec
     def read_vec(self):
         path = os.path.abspath('.')
         print(path)
@@ -56,7 +81,8 @@ class WORD_VEC:
             w = m[0]
             vec = m[1:]
             vec =[float(v) for v in m[1:]]
-            self.ulw(w)
+            if WORD_VEC.ulw(w):
+                continue
             count+=1
             if count%10000 == 0:
                 p = float(count)/num*100
@@ -349,7 +375,6 @@ def init():
     p = Preprocessor(True)
     p.init_dic('RAW_DATA.json')
 if __name__ == '__main__':
-
     wv = WORD_VEC()
 
-    wv.get_min_word('中国')
+    # WORD_VEC.clear_ulw('/Users/simengzhao/Documents/Python/sgns.merge.char')
