@@ -245,7 +245,7 @@ def valid_protype(meta):
 GEFG = model.gated_evidence_fact_generation()
 GEFG_meta={
     'name':'GEFG',
-    'seg_by_word': False,
+    'seg_by_word': True,
     'train_data':'train_data.json',
     'checkpoint_dir':'checkpoint_GEFG',
     'summary_dir':'summary_GEFG',
@@ -255,6 +255,7 @@ GEFG_meta={
         'MEL':GEFG.MAX_EVID_LEN,
         'MEC':GEFG.MAX_EVIDS,
         'MFL':GEFG.MAX_FACT_LEN,
+        'VEC_SIZE':300,
         'BATCH_SIZE':1
     }
 }

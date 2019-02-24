@@ -38,10 +38,14 @@ class WORD_VEC:
     @staticmethod
     def ulw(word):
         pattern = [
-            r'[,.\(\)（），。\-\+\*/\\]{2,}',
+            r'[,.\(\)（），。\-\+\*/\\_|]{2,}',
             r'\d+',
             r'[qwertyuiopasdfghjklzxcvbnm]+',
+            r'[ｑｗｅｒｔｙｕｉｏｐａｓｄｆｇｈｊｋｌｚｘｃｖｂｎｍ]+',
             r'[QWERTYUIOPASDFGHJKLZXCVBNM]+',
+            r'[ＱＷＥＲＴＹＵＩＯＰＡＳＤＦＧＨＪＫＬＺＸＣＶＢＮＭ]+',
+            r'[ⓐ ⓑ ⓒ ⓓ ⓔ ⓕ ⓖ ⓗ ⓘ ⓙ ⓚ ⓛ ⓜ ⓝ ⓞ ⓟ ⓠ ⓡ ⓢ ⓣ ⓤ ⓥ ⓦ ⓧ ⓨ ⓩ]+',
+            r'[Ⓐ Ⓑ Ⓒ Ⓓ Ⓔ Ⓕ Ⓖ Ⓗ Ⓘ Ⓙ Ⓚ Ⓛ Ⓜ Ⓝ Ⓞ Ⓟ Ⓠ Ⓡ Ⓢ Ⓣ Ⓤ Ⓥ Ⓦ Ⓧ Ⓨ Ⓩ ]+',
         ]
         ulwf = open('uslw.txt','a',encoding='utf-8')
         for p in pattern:
@@ -56,32 +60,33 @@ class WORD_VEC:
         vec_file = open(filename,'r',encoding='utf-8')
         meg = next(vec_file).split(' ')
         num = int(meg[0])
+        file = open('word_vec.char', 'w', encoding='utf-8')
 
         count = 0
-        vec_dic = {}
+
         for l in vec_file:
             m = l.strip().split(' ')
             w = m[0]
-            vec =[float(v) for v in m[1:]]
             if WORD_VEC.ulw(w):
                 continue
             count+=1
             if count%10000 == 0:
                 p = float(count)/num*100
-                sys.stdout.write('\r[INFO] Load vec data, %.2f%% finished'%p)
-
+                sys.stdout.write('\r[INFO] write cleared vec data, %d finished'%count)
+            file.write(l)
                 # vec_dic[w] = vec
+        print('\n Final count : %d'%count)
     def read_vec(self):
         path = os.path.abspath('.')
         print(path)
-        path = '/'.join(path.split('\\')[:-1])+'/sgns.merge.char'
+        # path = '/'.join(path.split('\\')[:-1])+'/sgns.merge.char'
         # path = 'F:/python/word_vec/sgns.merge.char'
         # path = 'D:\\赵斯蒙\\EVI-fact\\word_vec.char'
-
+        path = 'word_vec.char'
         vec_file = open(path,'r',encoding='utf-8')
-        meg = next(vec_file).split(' ')
-        num = int(meg[0])
-        self.num = num
+        # meg = next(vec_file).split(' ')
+        # num = int(meg[0])
+        # self.num = num
         count = 0
         for l in vec_file:
 
@@ -89,18 +94,18 @@ class WORD_VEC:
             w = m[0]
             vec = m[1:]
             vec =[float(v) for v in m[1:]]
-            if WORD_VEC.ulw(w):
-                continue
+            # if WORD_VEC.ulw(w):
+            #     continue
             count+=1
             if count%10000 == 0:
-                p = float(count)/num*100
-                sys.stdout.write('\r[INFO] Load vec data, %.2f%% finished'%p)
-            # if count == 10000:
-            #     break
+                sys.stdout.write('\r[INFO] Load vec data, %d finished'%count)
+            if count == 100000:
+                break
             self.vec_list.append(vec)
             self.word_list.append(w)
             self.vec_dic[w] = np.array(vec,dtype=np.float32)
 
+        print('\n[INFO] Vec data loaded')
         self.num = count
     def get_min_word(self,word):
         vec = self.vec_dic[word]
@@ -117,7 +122,50 @@ class WORD_VEC:
         i = np.argmax(dis)
         return self.word_list[i]
     def sen2vec(self,sen):
-        pass
+        self.seg.cut(sen)
+        vec_out = []
+        for w in sen:
+            if w in self.vec_dic:
+                vec_out.append(self.vec_dic[w])
+        return vec_out
+    def case_to_vec(self,raw_file):
+        f = open(raw_file,'r',encoding='utf-8')
+        cases = json.load(f)
+        fmax = 0
+        fmin = 999
+
+        emax = 0
+        emin = 999
+        fjson = open('case_wordvec.json','w',encoding='utf-8')
+        clist = []
+        count = 0
+        for case in cases:
+            f = case['fact']
+            es = case['evid']
+            fv = self.sen2vec(f)
+            if len(fv)>fmax :
+                fmax = len(fv)
+            elif len(fv)<fmin:
+                fmin = len(fv)
+            evs = []
+            for e in es:
+                ev = self.sen2vec(e)
+                if len(ev) > emax:
+                    emax = len(ev)
+                elif len(fv) < emin:
+                    emin = len(ev)
+                evs.append(ev)
+            c = {'fact':fv,
+                 'evid':evs}
+            clist.append(c)
+            count+=1
+            if count%100 == 0:
+                print('[INFO] Case to json, %d cases finished'%count)
+
+            if count == 10:
+                break
+        json.dump(clist,fjson)
+
 class Preprocessor:
     def __init__(self,SEG_BY_WORD = True):
         self.SEG_BY_WORD = SEG_BY_WORD
@@ -200,6 +248,7 @@ class Preprocessor:
             dic_file.write('%s %d\n' % (i, self.GRAM2N[i]))
 
     def get_sentence(self, index_arr,cut_size = None):
+
         res = ''
         for i in range(len(index_arr)):
             if cut_size != None:
@@ -251,29 +300,6 @@ class Preprocessor:
         dt = json.load(source)
         for i in dt:
             yield i
-    # def read_file(self, data_source):
-    #     rf = open(data_source, 'r', encoding='utf-8')
-    #     res = {'fact': '',
-    #            'evid': [], }
-    #     for line in rf:
-    #         fact_pattern = '<FACT(.*?)>(.*?)</FACT.*>'
-    #         evid_pattern = '<EVID(.*?)>(.*?)<EVID.*>'
-    #         f = re.findall(fact_pattern, line)
-    #         e = re.findall(evid_pattern, line)
-    #         if len(f) > 0:
-    #             if res['fact'] != '':
-    #                 yield res
-    #             res = {'fact': f[0][1],
-    #                    'evid': [], }
-    #
-    #         elif len(e) > 0:
-    #             res['evid'].append(e[0][1])
-    #         else:
-    #             pass
-    #
-    #     yield res
-
-    #   生成context的函数
     @staticmethod
     def context(title, pos, C):
         res = np.zeros([C], np.int32)
@@ -376,7 +402,54 @@ class Preprocessor:
                     print(fact_len)
                     continue
                 yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,fact_len
+        elif format_type =='GEFG_word_vec':
 
+            # 将原始的证据分离输入，并且使用词向量编码
+            # 输出格式为 一个数组表示所有的证据文本的词向量矩阵，一个向量表示事实文本的词向量矩阵
+            count = 0
+            wordvec =  WORD_VEC()
+            self.wordvec = wordvec
+            try:
+                mel = meta['MEL']
+                mec = meta['MEC']
+                mfl = meta['MFL']
+                vec_size = meta['VEC_SIZE']
+                pass
+
+            except KeyError:
+                print('[ERROR] The meta data expected for data preparation required more info (require: C,V )')
+                return
+            for res in res_gen:
+                evids = res['evid']
+                fact = res['fact']
+                evid_vecs = []
+                evid_lens = []
+                for i in range(mec):
+                    if i < len(evids):
+                        evid_vec = wordvec.sen2vec(evids[i])
+                        tmp_vec = np.matrix(evid_vec)
+                        try:
+                            padded_vec = np.concatenate((tmp_vec,np.zeros([mel-len(tmp_vec),vec_size])))
+                        except ValueError:
+                            print("v error evid:")
+                            print(len(tmp_vec))
+                            continue
+                        evid_vecs.append(padded_vec)
+                        evid_lens.append(len(evid_vec))
+                    else:
+                        evid_vecs.append(np.zeros([mel,vec_size]))
+                        evid_lens.append(0)
+
+                fact_vec = wordvec.sen2vec(fact)
+                fact_len = len(fact_vec)
+
+                try:
+                    fact_vec = np.concatenate([fact_vec,np.zeros([mfl-len(fact_vec),vec_size],dtype=np.int32)])
+                except ValueError:
+                    print("v error fact:")
+                    print(fact_len)
+                    continue
+                yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,fact_len
         else:
             print("[ERROR] Declaration of format type is required")
 def init():
@@ -385,5 +458,6 @@ def init():
     p.init_dic('RAW_DATA.json')
 if __name__ == '__main__':
     wv = WORD_VEC()
-    wv.dump_file()
-    # WORD_VEC.clear_ulw('/Users/simengzhao/Documents/Python/sgns.merge.char')
+    wv.case_to_vec('test_data.json')
+    # wv.dump_file()
+    # WORD_VEC.clear_ulw('F:/python/word_vec/sgns.merge.char')
