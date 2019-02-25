@@ -248,7 +248,7 @@ class gated_evidence_fact_generation(Base_model):
 
                     # with tf.device('/cpu'):
                     true_l = fact_mat[i]
-                    loss =tf.losses.mean_pairwise_squared_error(true_l,dis_v)
+                    loss =tf.losses.mean_squared_error(true_l,dis_v)
 
                     # char_most_pro = tf.cast(fact_mat[i],tf.int32)
                     decoder_state_ta = decoder_state_ta.write(j, decoder_state)
