@@ -167,12 +167,8 @@ def valid_protype(meta):
     )
     with tf.Session(config=config) as sess:
         # 配置，包括参数初始化以及读取检查点
-        # init = tf.global_variables_initializer()
-        # sess.run(init)
         checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
         sess.graph.finalize()
-        train_writer = tf.summary.FileWriter(summary_dir,sess.graph)
-        start_epoch = 0
         if checkpoint:
             saver.restore(sess, checkpoint)
             print('[INFO] 从检查点 %s 进行验证'%checkpoint)

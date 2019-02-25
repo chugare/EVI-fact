@@ -250,6 +250,9 @@ class Tf_idf:
         file_all = open(fname,'r',encoding='utf-8')
         data_all = json.load(file_all)
 
+
+class InfEnt:
+
 def t_generate_tfidf():
     t = Tf_idf('_WORD_DIC.txt','FORMAT_data.json')
     gdt = json.load(open('gate_report_label.json','r',encoding='utf-8'))

@@ -800,11 +800,6 @@ class gated_evidence_fact_generation_3(Base_model):
 
         i =tf.constant(0)
         evid_sig = tf.TensorArray(dtype=tf.float32, size=self.MAX_EVIDS, clear_after_read=False,name='EVID_SIGINIFCANT',tensor_array_name='EVID_SIG')
-        def init_evid_sig_loop(i,evid_sig):
-            evid_sig = evid_sig.write(i,tf.zeros(shape=[self.MAX_EVID_LEN]))
-            i = i+1
-            return i,evid_sig
-        evid_sig = tf.while_loop(lambda i,*_:i<evid_count,init_evid_sig_loop,[i,evid_sig])
 
         decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT, state_is_tuple=True)
         run_state = decoder_cell.zero_state(self.BATCH_SIZE, tf.float32)
