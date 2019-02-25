@@ -26,7 +26,7 @@ class WORD_VEC:
         self.num = 0
         print('[INFO] Start load word vector')
         self.read_vec()
-        self.seg = pkuseg.pkuseg()
+        self.seg = pkuseg.PKUSeg()
     def dump_file(self):
         file = open('word_vec.char','w',encoding='utf-8')
         file.write(str(self.num)+' 300\n')
@@ -173,6 +173,7 @@ class Preprocessor:
         self.N2GRAM = {}
         self.freq_threshold = 0
         self.read_dic()
+        self.wordvec = None
         self.ULSW = ['\n', '\t',' ','\n']
 
     def read_dic(self):
@@ -193,7 +194,7 @@ class Preprocessor:
     def init_dic(self, source_file):
         #   第一次建立字典的时候调用
         dic_count = {}
-        seg = pkuseg.pkuseg()
+        seg = PKUSeg()
         try:
             data_gen = self.read_file(source_file)
             count = 0
@@ -407,8 +408,9 @@ class Preprocessor:
             # 将原始的证据分离输入，并且使用词向量编码
             # 输出格式为 一个数组表示所有的证据文本的词向量矩阵，一个向量表示事实文本的词向量矩阵
             count = 0
-            wordvec =  WORD_VEC()
-            self.wordvec = wordvec
+            if self.wordvec is None:
+                wordvec =  WORD_VEC()
+                self.wordvec = wordvec
             try:
                 mel = meta['MEL']
                 mec = meta['MEC']
