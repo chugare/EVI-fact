@@ -58,11 +58,11 @@ class gated_evidence_fact_generation(Base_model):
         if state is None:
             init_state_fw = fw_cell.zero_state(__batch_size, tf.float32)
             init_state_bw = bw_cell.zero_state(__batch_size, tf.float32)
-        elif len(state) == 2:
+        else:
             init_state_bw = state[1]
             init_state_fw = state[0]
-        else:
-            print('[INFO] Require state with size 2')
+        # else:
+        #     print('[INFO] Require state with size 2')
 
         input_vec = tf.reshape(input_vec, [1, input_vec.shape[0], input_vec.shape[1]])
         output, en_states = tf.nn.bidirectional_dynamic_rnn(cell_fw=fw_cell,
@@ -72,7 +72,7 @@ class gated_evidence_fact_generation(Base_model):
                                                             initial_state_fw=init_state_fw,
                                                             initial_state_bw=init_state_bw)
 
-        output = tf.concat(output, 2)
+        output = tf.concat(output,2)
         state = tf.concat(en_states, 2)[0]
 
         return output, state
@@ -81,11 +81,11 @@ class gated_evidence_fact_generation(Base_model):
         # encoder part
         # 将以tensor形式输入的原始数据转化成可变的TensorArray格式
 
-        evid_mat = tf.placeholder(dtype=tf.int32, shape=[self.MAX_EVIDS, self.MAX_EVID_LEN,self.VEC_SIZE],name='evid_mat_r')
+        evid_mat = tf.placeholder(dtype=tf.float32, shape=[self.MAX_EVIDS, self.MAX_EVID_LEN,self.VEC_SIZE],name='evid_mat_r')
         evid_len = tf.placeholder(dtype=tf.int32, shape=[self.MAX_EVIDS],name='evid_len')
         evid_count = tf.placeholder(dtype=tf.int32,name='evid_count')
         if mode == 'train':
-            fact_mat = tf.placeholder(dtype=tf.int32, shape=[self.MAX_FACT_LEN,self.VEC_SIZE],name='fact_mat')
+            fact_mat = tf.placeholder(dtype=tf.float32, shape=[self.MAX_FACT_LEN,self.VEC_SIZE],name='fact_mat')
             fact_len = tf.placeholder(dtype=tf.int32,name='fact_len')
             global_step = tf.placeholder(dtype=tf.int32)
         else:
@@ -98,7 +98,12 @@ class gated_evidence_fact_generation(Base_model):
         cells = self.get_cells()
 
         def _encoder_evid(i, _state_ta, _output_ta):
+
+
             output, state = gated_evidence_fact_generation.BiLSTMencoder(cells, evid_mat[i], evid_len[i])
+
+
+
             _state_ta = _state_ta.write(i, state)
             _output_ta = _output_ta.write(i, output)
 
@@ -115,7 +120,7 @@ class gated_evidence_fact_generation(Base_model):
 
         output_seq = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='OUTPUT_SEQ',tensor_array_name='OUTPUT_SQ_TA')
 
-        gate_fc_w = tf.get_variable('gate',shape=[self.VEC_SIZE*2],dtype=tf.float32,
+        gate_fc_w = tf.get_variable('gate',shape=[self.VEC_SIZE],dtype=tf.float32,
                                     initializer=tf.glorot_normal_initializer())
         loss_array = tf.TensorArray(dtype=tf.float32, size=self.MAX_FACT_LEN, clear_after_read=False,name='LOSS_COLLECTION',tensor_array_name='LOSS_TA')
         e_lr = tf.train.exponential_decay(self.LR, global_step=global_step, decay_steps=self.DECAY_STEP,
@@ -126,11 +131,11 @@ class gated_evidence_fact_generation(Base_model):
         min_loss_index = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='GATE_VALUE',tensor_array_name='GV_TA')
         #选择机制所使用的attention向量
         attention_var_gate = tf.get_variable('attention_sel', dtype=tf.float32,
-                                             shape=[self.VEC_SIZE*2, self.HIDDEN_SIZE],
+                                             shape=[self.VEC_SIZE, self.DECODER_NUM_UNIT*2],
                                              initializer=tf.glorot_normal_initializer())
         #生成器所使用的attention向量
         attention_var_gen = tf.get_variable('attention_gen', dtype=tf.float32,
-                                            shape=[ self.VEC_SIZE*2,self.HIDDEN_SIZE],
+                                            shape=[ self.VEC_SIZE,self.DECODER_NUM_UNIT*2],
                                             initializer=tf.glorot_normal_initializer())
 
         decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(self.DECODER_NUM_UNIT, state_is_tuple=True)
@@ -166,7 +171,7 @@ class gated_evidence_fact_generation(Base_model):
         def _decoder_step(i, _state_seq, generated_seq, run_state, _gate_value, _min_loss_index, nll):
 
             context_vec = tf.cond(tf.equal(i, 0),
-                                  lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT * 2]),
+                                  lambda: tf.constant(0, dtype=tf.float32, shape=[self.DECODER_NUM_UNIT*2]),
                                   lambda: _state_seq.read(i - 1))
 
             # 计算上下文向量直接使用上一次decoder的输出状态，作为上下文向量，虽然不一定好用，可能使用类似于ABS的上下文计算方式会更好，可以多试验

@@ -99,7 +99,7 @@ class WORD_VEC:
             count+=1
             if count%10000 == 0:
                 sys.stdout.write('\r[INFO] Load vec data, %d finished'%count)
-            if count == 100000:
+            if count == 500000:
                 break
             self.vec_list.append(vec)
             self.word_list.append(w)
@@ -122,7 +122,7 @@ class WORD_VEC:
         i = np.argmax(dis)
         return self.word_list[i]
     def sen2vec(self,sen):
-        self.seg.cut(sen)
+        sen = self.seg.cut(sen)
         vec_out = []
         for w in sen:
             if w in self.vec_dic:
@@ -402,7 +402,7 @@ class Preprocessor:
                     print(fact_len)
                     continue
                 yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,fact_len
-        elif format_type =='GEFG_word_vec':
+        elif format_type =='GEFG_WV':
 
             # 将原始的证据分离输入，并且使用词向量编码
             # 输出格式为 一个数组表示所有的证据文本的词向量矩阵，一个向量表示事实文本的词向量矩阵
@@ -449,7 +449,7 @@ class Preprocessor:
                     print("v error fact:")
                     print(fact_len)
                     continue
-                yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,fact_len
+                yield evid_vecs,np.array(evid_lens),len(evids),fact_vec,fact_len
         else:
             print("[ERROR] Declaration of format type is required")
 def init():

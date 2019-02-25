@@ -251,7 +251,7 @@ GEFG_meta={
     'summary_dir':'summary_GEFG',
     'model':model.gated_evidence_fact_generation,
     'data_meta':{
-        'NAME':'GEFG',
+        'NAME':'GEFG_WV',
         'MEL':GEFG.MAX_EVID_LEN,
         'MEC':GEFG.MAX_EVIDS,
         'MFL':GEFG.MAX_FACT_LEN,
