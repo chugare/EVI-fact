@@ -13,7 +13,7 @@ import jieba
 import numpy as np
 import re
 import json
-import pkuseg
+# import pkuseg
 import sys
 import os
 import struct
@@ -121,6 +121,14 @@ class WORD_VEC:
         dis = np.reshape(dis, [-1])
         i = np.argmax(dis)
         return self.word_list[i]
+    def get_sentence(self,vlist):
+        result = ''
+        for vec in vlist:
+            dis = cosine_similarity(self.vec_list, [vec])
+            dis = np.reshape(dis, [-1])
+            i = np.argmax(dis)
+            result += self.word_list[i]
+        return result
     def sen2vec(self,sen):
         sen = self.seg.cut(sen)
         vec_out = []
@@ -359,8 +367,45 @@ class Preprocessor:
                         y_vecs = []
                         yc_vecs = []
 
-        elif format_type =='GEFG':
+        elif format_type =='CE':
+            # Concatenate Evidence
+            count = 0
+            try:
+                mel = meta['MEL']
+                mfl = meta['MFL']
+                pass
 
+            except KeyError:
+                print('[ERROR] The meta data expected for data preparation required more info (require: C,V )')
+            for res in res_gen:
+                evids = res['evid']
+                fact = res['fact']
+                evid_vecs = []
+                evid_lens = []
+                c_evid = ''
+                for e in evids:
+                    c_evid += e
+
+
+                evid_oh = self.Nencoder(c_evid)
+                evid_len = len(evid_oh)
+                if evid_len>mel:
+                    continue
+                tmp_vec = np.array(evid_oh)
+                padded_vec = np.concatenate((tmp_vec,np.zeros([mel-len(tmp_vec)])))
+
+                fact_vec = self.Nencoder(fact)
+                fact_len = len(fact_vec)
+
+                try:
+                    fact_vec = np.concatenate([fact_vec,np.zeros([mfl-len(fact_vec)],dtype=np.int32)])
+                except ValueError:
+                    print("v error fact:")
+                    print(fact_len)
+                    continue
+                yield np.matrix(evid_vecs),evid_len,fact_vec,fact_len,fact
+        elif format_type =='SE':
+            # Separated Evidence
             # 将原始的证据分离输入，并且使用one-hot编码方式
             # 输出格式为 一个数组表示所有的证据文本的one-hot编码，一个向量表示事实文本的one-hot编码
             count = 0
@@ -403,8 +448,8 @@ class Preprocessor:
                     print(fact_len)
                     continue
                 yield np.matrix(evid_vecs),np.array(evid_lens),len(evids),fact_vec,fact_len
-        elif format_type =='GEFG_WV':
-
+        elif format_type =='SE_WV':
+            # Separated Evidence with Word Vector
             # 将原始的证据分离输入，并且使用词向量编码
             # 输出格式为 一个数组表示所有的证据文本的词向量矩阵，一个向量表示事实文本的词向量矩阵
             count = 0
@@ -459,7 +504,21 @@ def init():
     p = Preprocessor(True)
     p.init_dic('RAW_DATA.json')
 if __name__ == '__main__':
-    wv = WORD_VEC()
-    wv.case_to_vec('test_data.json')
+
+
+    jsfile = open('FORMAT_data.json','r',encoding='utf-8')
+    data = json.load(jsfile)
+    ellist = []
+    for d in data:
+        evid = d['evid']
+        c = 0
+        for e in evid:
+            c += len(e)
+        ellist.append(c)
+    ellist.sort()
+    all = len(ellist)
+    for i in range(10):
+        print(ellist[int(all*i/10)])
+    print(ellist[-1])
     # wv.dump_file()
     # WORD_VEC.clear_ulw('F:/python/word_vec/sgns.merge.char')

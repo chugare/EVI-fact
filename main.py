@@ -197,14 +197,19 @@ def valid_protype(meta):
                     out_seq = inter_res['out_seq']
                     fact_seq = inter_res['fact_seq']
 
-                    fact_sen = p.get_sentence(fact_seq)
-                    out_sen = p.get_sentence(out_seq,len(fact_sen))
+                    if source_name.endswith('WV'):
+                        out_sen = p.wordvec.get_sentence(out_seq)
+                        fact_sen = fact_seq
+                    else:
+                        fact_sen = p.get_sentence(fact_seq)
+                        out_sen = p.get_sentence(out_seq,len(fact_sen))
                     if len(out_sen) < len(fact_sen):
                         out_sen = out_sen[:len(fact_sen)]
 
                     cur_time = time.time()
                     time_cost = cur_time-last_time
                     total_cost = cur_time-start_time
+
 
                     print('[INFO] 第 %d 个测试例子验证结束  用时: %.2f 共计用时 %.2f 得到生成队列：' % (global_step,time_cost,total_cost))
                     print('TRUE:'+fact_sen)
@@ -238,16 +243,19 @@ def valid_protype(meta):
 # valid_GEFG()
 # train_GEFG()
 
-GEFG = model.gated_evidence_fact_generation()
-GEFG_meta={
-    'name':'GEFG',
+GEFG_WV = model.GEFG_WV()
+ABS = model.ABS_model()
+S2S = model.SEQ2SEQ()
+
+GEFG_WV_meta={
+    'name':'GEFG_WV',
     'seg_by_word': True,
     'train_data':'train_data.json',
     'checkpoint_dir':'checkpoint_GEFG',
     'summary_dir':'summary_GEFG',
-    'model':model.gated_evidence_fact_generation,
+    'model':model.GEFG_WV,
     'data_meta':{
-        'NAME':'GEFG_WV',
+        'NAME':'SE_WV',
         'MEL':GEFG.MAX_EVID_LEN,
         'MEC':GEFG.MAX_EVIDS,
         'MFL':GEFG.MAX_FACT_LEN,
@@ -255,7 +263,7 @@ GEFG_meta={
         'BATCH_SIZE':1
     }
 }
-ABS = model.ABS_model()
+
 ABS_meta={
     'name':'ABS',
     'seg_by_word':False,
@@ -271,15 +279,15 @@ ABS_meta={
     }
 
 }
-GEFG_VALID_meta={
-    'name':'GEFG',
+GEFG_WV_VALID_meta={
+    'name':'GEFG_WV',
     'seg_by_word': False,
     'eval_data':'test_data.json',
     'checkpoint_dir':'checkpoint_GEFG',
     'summary_dir':'summary_GEFG',
-    'model':model.gated_evidence_fact_generation,
+    'model':model.GEFG_WV,
     'data_meta':{
-        'NAME':'GEFG',
+        'NAME':'SE',
         'MEL':GEFG.MAX_EVID_LEN,
         'MEC':GEFG.MAX_EVIDS,
         'MFL':GEFG.MAX_FACT_LEN,
@@ -300,8 +308,36 @@ ABS_VALID_meta ={
         'BATCH_SIZE':ABS.BATCH_SIZE
     }
 }
-#valid_protype(meta=ABS_VALID_meta)
-#
+
+
+S2S_meta={
+    'name':'S2S',
+    'seg_by_word': False,
+    'train_data':'train_data.json',
+    'checkpoint_dir':'checkpoint_S2S',
+    'summary_dir':'summary_S2S',
+    'model':model.SEQ2SEQ,
+    'data_meta':{
+        'NAME':'CE',
+        'MEL':S2S.MAX_EVID_LEN,
+        'MFL':S2S.MAX_FACT_LEN,
+        'BATCH_SIZE':1
+    }
+}
+S2S_VALID_meta={
+    'name':'S2S',
+    'seg_by_word': False,
+    'eval_data':'test_data.json',
+    'checkpoint_dir':'checkpoint_S2S',
+    'summary_dir':'summary_S2S',
+    'model':model.SEQ2SEQ,
+    'data_meta':{
+        'NAME':'CE',
+        'MEL':S2S.MAX_EVID_LEN,
+        'MFL':S2S.MAX_FACT_LEN,
+        'BATCH_SIZE':1
+    }
+}
 
 if __name__ == '__main__':
     print(sys.argv)
@@ -310,9 +346,14 @@ if __name__ == '__main__':
             valid_protype(meta=GEFG_VALID_meta)
         if sys.argv[2] == 't':
             train_protype(meta= GEFG_meta)
-    if sys.argv[1] == 'ABS':
+    elif sys.argv[1] == 'ABS':
         if sys.argv[2] == 'v':
             valid_protype(meta=ABS_VALID_meta)
         if sys.argv[2] == 't':
             train_protype(meta= ABS_meta)
+    elif sys.argv[1] == 'S2S':
+        if sys.argv[2] == 'v':
+            valid_protype(meta=S2S_VALID_meta)
+        if sys.argv[2] == 't':
+            train_protype(meta= S2S_meta)
 
