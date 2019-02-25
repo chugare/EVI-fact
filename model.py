@@ -352,14 +352,14 @@ class gated_evidence_fact_generation(Base_model):
             # tf.summary.histogram("DIS_V",dis_v[:fact_len])
             grads = adam.compute_gradients(nll)
 
-            # for var in tf.trainable_variables():
-            #     tf.summary.histogram(var.name, var)
-            # # 使用直方图记录梯度
-            # for i,(grad, var) in enumerate(grads):
-            #     if grad is not None:
-            #     #     grads[i] = (tf.clip_by_norm(grad,5),var)
-            #     # tf.summary.histogram(var.name + '/gradient', grads[i])
-            #         tf.summary.histogram(var.name + '/gradient', grad)
+            for var in tf.trainable_variables():
+                tf.summary.histogram(var.name, var)
+            # 使用直方图记录梯度
+            for i,(grad, var) in enumerate(grads):
+                if grad is not None:
+                #     grads[i] = (tf.clip_by_norm(grad,5),var)
+                # tf.summary.histogram(var.name + '/gradient', grads[i])
+                    tf.summary.histogram(var.name + '/gradient', grad)
 
             t_op = adam.apply_gradients(grads)
         else:
