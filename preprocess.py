@@ -387,8 +387,6 @@ class Preprocessor:
             for res in res_gen:
                 evids = res['evid']
                 fact = res['fact']
-                evid_vecs = []
-                evid_lens = []
                 c_evid = ''
                 for e in evids:
                     c_evid += e
@@ -410,7 +408,7 @@ class Preprocessor:
                     print("v error fact:")
                     print(fact_len)
                     continue
-                yield np.matrix(evid_vecs),evid_len,fact_vec,fact_len,fact
+                yield padded_vec,evid_len,fact_vec,fact_len,fact
         elif format_type =='SE':
             # Separated Evidence
             # 将原始的证据分离输入，并且使用one-hot编码方式
