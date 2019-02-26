@@ -199,7 +199,7 @@ def valid_protype(meta):
                     fact_seq = inter_res['fact_seq']
 
                     if model_name == 'GEFG_WV':
-                        out_sen = p.wordvec.get_sentence(out_seq)
+                        out_sen = p.wordvec.get_sentence(out_seq,len(fact_seq))
                         fact_sen = fact_seq
                     else:
                         fact_sen = p.get_sentence(fact_seq)

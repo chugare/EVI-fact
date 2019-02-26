@@ -460,7 +460,6 @@ class GEFG_WV(Base_model):
                        ops['evid_len']: evid_len,
                        ops['evid_count']: evid_count}
         )
-        print(gate_value)
         return {
             'out_seq':output_seq,
             'fact_seq':raw_fact,

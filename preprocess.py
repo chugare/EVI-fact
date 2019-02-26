@@ -121,13 +121,20 @@ class WORD_VEC:
         dis = np.reshape(dis, [-1])
         i = np.argmax(dis)
         return self.word_list[i]
-    def get_sentence(self,vlist):
+    def get_sentence(self,vlist,l):
         result = ''
+        x = 0
         for vec in vlist:
+            if x == l:
+                break
+            print('[INFO] Search for nearest word on index %d'%x)
+            print(vec)
             dis = cosine_similarity(self.vec_list, [vec])
             dis = np.reshape(dis, [-1])
             i = np.argmax(dis)
+            x+= 1
             result += self.word_list[i]
+
         return result
     def sen2vec(self,sen):
         sen = self.seg.cut(sen)
