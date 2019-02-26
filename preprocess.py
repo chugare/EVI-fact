@@ -496,7 +496,7 @@ class Preprocessor:
                     print("v error fact:")
                     print(fact_len)
                     continue
-                yield evid_vecs,np.array(evid_lens),len(evids),fact_vec,fact_len
+                yield evid_vecs,np.array(evid_lens),len(evids),fact_vec,fact_len,fact
         else:
             print("[ERROR] Declaration of format type is required")
 def init():
