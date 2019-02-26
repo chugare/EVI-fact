@@ -256,9 +256,9 @@ GEFG_WV_meta={
     'model':model.GEFG_WV,
     'data_meta':{
         'NAME':'SE_WV',
-        'MEL':GEFG.MAX_EVID_LEN,
-        'MEC':GEFG.MAX_EVIDS,
-        'MFL':GEFG.MAX_FACT_LEN,
+        'MEL':GEFG_WV.MAX_EVID_LEN,
+        'MEC':GEFG_WV.MAX_EVIDS,
+        'MFL':GEFG_WV.MAX_FACT_LEN,
         'VEC_SIZE':300,
         'BATCH_SIZE':1
     }
@@ -288,9 +288,9 @@ GEFG_WV_VALID_meta={
     'model':model.GEFG_WV,
     'data_meta':{
         'NAME':'SE',
-        'MEL':GEFG.MAX_EVID_LEN,
-        'MEC':GEFG.MAX_EVIDS,
-        'MFL':GEFG.MAX_FACT_LEN,
+        'MEL':GEFG_WV.MAX_EVID_LEN,
+        'MEC':GEFG_WV.MAX_EVIDS,
+        'MFL':GEFG_WV.MAX_FACT_LEN,
         'BATCH_SIZE':1
     }
 }
