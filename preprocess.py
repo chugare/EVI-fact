@@ -13,7 +13,7 @@ import jieba
 import numpy as np
 import re
 import json
-# import pkuseg
+import pkuseg
 import sys
 import os
 import struct
