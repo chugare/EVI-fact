@@ -129,7 +129,7 @@ class GEFG_WV(Base_model):
         def _encoder_evid(i, _state_ta, _output_ta):
 
 
-            output, state = gated_evidence_fact_generation.BiLSTMencoder(cells, evid_mat[i], evid_len[i])
+            output, state = GEFG_WV.BiLSTMencoder(cells, evid_mat[i], evid_len[i])
 
 
 
@@ -147,7 +147,7 @@ class GEFG_WV(Base_model):
         _, state_ta, output_ta = tf.while_loop(lambda i, state_ta, output_ta: i < evid_count, _encoder_evid,
                                                (i, state_ta, output_ta), name='get_lstm_encoder')
 
-        output_seq = tf.TensorArray(dtype=tf.int32, size=self.MAX_FACT_LEN, clear_after_read=False,name='OUTPUT_SEQ',tensor_array_name='OUTPUT_SQ_TA')
+        output_seq = tf.TensorArray(dtype=tf.float32, size=self.MAX_FACT_LEN, clear_after_read=False,name='OUTPUT_SEQ',tensor_array_name='OUTPUT_SQ_TA')
 
         gate_fc_w = tf.get_variable('gate',shape=[self.VEC_SIZE],dtype=tf.float32,
                                     initializer=tf.glorot_normal_initializer())

@@ -341,11 +341,11 @@ S2S_VALID_meta={
 
 if __name__ == '__main__':
     print(sys.argv)
-    if sys.argv[1] == 'GEFG':
+    if sys.argv[1] == 'GEFG_WV':
         if sys.argv[2] == 'v':
-            valid_protype(meta=GEFG_VALID_meta)
+            valid_protype(meta=GEFG_WV_VALID_meta)
         if sys.argv[2] == 't':
-            train_protype(meta= GEFG_meta)
+            train_protype(meta= GEFG_WV_meta)
     elif sys.argv[1] == 'ABS':
         if sys.argv[2] == 'v':
             valid_protype(meta=ABS_VALID_meta)
