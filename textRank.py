@@ -1,5 +1,5 @@
 import jieba
-import pkuseg
+# import pkuseg
 import json
 import math
 import numpy as np
@@ -46,7 +46,7 @@ class extractSummary:
             else:
                 yield  fact,evid_sentences
     def readJSONDoc_para(self,doc_name):
-        seg = pkuseg.pkuseg()
+
         self.facts = []
         self.evids = []
         doc_f = open(doc_name,'r',encoding='utf-8')
@@ -80,12 +80,20 @@ class extractSummary:
             print(sen1)
             print(sen2)
 
-    def lead(self,doc_g):
+
+    def covage(self,doc_g):
         for fact,evids in doc_g:
             res = ''
             for e in evids:
                 lead = str(e).split('，')[0]
                 res+=lead
+
+        yield fact,res
+    def lead(self,doc_g):
+        for fact,evids in doc_g:
+            res = ''
+            lead = str(evids[0]).split('，')[0]
+            res+=lead
 
             yield fact,res
     def lexRank(self,doc_g):
@@ -251,7 +259,6 @@ class Tf_idf:
         data_all = json.load(file_all)
 
 
-class InfEnt:
 
 def t_generate_tfidf():
     t = Tf_idf('_WORD_DIC.txt','FORMAT_data.json')
@@ -338,11 +345,11 @@ def Eval_with_generator(gen):
 if __name__ == '__main__':
     es = extractSummary()
     # doc_g_id = es.readJSONDoc_sen('test_data.json')
-    # doc_g_char = es.readJSONDoc_para('test_data.json')
-    doc_d_sen = es.readJSONDoc_sen('test_data.json',False)
-    # ldg = es.lead(doc_g=doc_g_char)
+    doc_g_char = es.readJSONDoc_para('test_data.json')
+    # doc_d_sen = es.readJSONDoc_sen('test_data.json',False)
+    ldg = es.lead(doc_g=doc_g_char)
     # trg = es.textRank(doc_g_id)
-    tfidf = es.Tfidf(doc_d_sen)
-    Eval_with_generator(tfidf)
+    # tfidf = es.Tfidf(doc_d_sen)
+    Eval_with_generator(ldg)
 
 
