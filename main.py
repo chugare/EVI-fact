@@ -291,6 +291,7 @@ GEFG_WV_VALID_meta={
         'MEL':GEFG_WV.MAX_EVID_LEN,
         'MEC':GEFG_WV.MAX_EVIDS,
         'MFL':GEFG_WV.MAX_FACT_LEN,
+        'VEC_SIZE':300,
         'BATCH_SIZE':1
     }
 }
