@@ -287,7 +287,7 @@ GEFG_WV_VALID_meta={
     'summary_dir':'summary_GEFG',
     'model':model.GEFG_WV,
     'data_meta':{
-        'NAME':'SE',
+        'NAME':'SE_WV',
         'MEL':GEFG_WV.MAX_EVID_LEN,
         'MEC':GEFG_WV.MAX_EVIDS,
         'MFL':GEFG_WV.MAX_FACT_LEN,
