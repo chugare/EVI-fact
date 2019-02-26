@@ -132,7 +132,7 @@ class WORD_VEC:
             dis = np.reshape(dis, [-1])
             i = np.argmax(dis)
             x+= 1
-            print(word_list[i])
+            print(self.word_list[i])
             result += self.word_list[i]
 
         return result
