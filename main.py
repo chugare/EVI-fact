@@ -146,6 +146,7 @@ def train_protype(meta):
 
 def valid_protype(meta):
     # 设置训练配置内容
+    model_name = meta['name']
     source_name = meta['eval_data'] # meta
     checkpoint_dir = os.path.abspath(meta['checkpoint_dir']) # meta
     summary_dir = os.path.abspath(meta['summary_dir']) # meta
@@ -197,7 +198,7 @@ def valid_protype(meta):
                     out_seq = inter_res['out_seq']
                     fact_seq = inter_res['fact_seq']
 
-                    if source_name == 'GEFG_WV':
+                    if model_name == 'GEFG_WV':
                         out_sen = p.wordvec.get_sentence(out_seq)
                         fact_sen = fact_seq
                     else:
