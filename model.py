@@ -679,7 +679,7 @@ class SEQ2SEQ(Base_model):
         return op
 
     def train_fun(self,sess,data_gen,ops,global_step):
-        evid_mat, evid_len, fact_mat, fact_len = next(data_gen)
+        evid_mat, evid_len, fact_mat, fact_len ,_= next(data_gen)
         output_seq, nll,acc,merge,_ = sess.run(
             [ops['output_seq'],
              ops['nll'],
@@ -712,7 +712,7 @@ class SEQ2SEQ(Base_model):
             'merge':merge
         }
     def inter_fun(self,sess,data_gen,ops):
-        evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
+        evid_mat, evid_len, fact_mat, fact_len = next(data_gen)
         output_seq, gate_value= sess.run(
             [ops['output_seq'], ops['gate_value']],
             feed_dict={ops['evid_mat']: evid_mat,

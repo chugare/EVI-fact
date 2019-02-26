@@ -8,14 +8,13 @@ import Evaluate
 from sklearn.metrics.pairwise import cosine_similarity
 class extractSummary:
     def readJSONDoc_sen(self,doc_name,map_id= True):
-        seg = pkuseg.pkuseg()
         self.facts = []
         self.evids = []
         doc_f = open(doc_name,'r',encoding='utf-8')
         docs_js = json.load(doc_f)
         for doc_js in docs_js:
             fact = doc_js['fact']
-            fact = seg.cut(fact)
+            fact = jieba.lcut(fact)
 
             # self.facts.append(fact)
             evids = doc_js['evid']
@@ -26,7 +25,7 @@ class extractSummary:
                     s = s.strip()
                     if len(s)<=5:
                         continue
-                    evid_sentences.append(seg.cut(s))
+                    evid_sentences.append(jieba.lcut(s))
             if map_id:
                 fact_id = []
                 for f in fact:
@@ -111,7 +110,7 @@ class extractSummary:
             tf_v.sort(key=lambda x:x[2],reverse=True)
             res = ''
             for s in tf_v:
-                if len(s[0])+len(res)<200:
+                if len(s[0])+len(res)<100:
                     res = res + s[0]
                 else:
                     break
@@ -345,11 +344,11 @@ def Eval_with_generator(gen):
 if __name__ == '__main__':
     es = extractSummary()
     # doc_g_id = es.readJSONDoc_sen('test_data.json')
-    doc_g_char = es.readJSONDoc_para('test_data.json')
-    # doc_d_sen = es.readJSONDoc_sen('test_data.json',False)
-    ldg = es.lead(doc_g=doc_g_char)
+    # doc_g_char = es.readJSONDoc_para('test_data.json')
+    doc_d_sen = es.readJSONDoc_sen('test_data.json',False)
+    # ldg = es.lead(doc_g=doc_g_char)
     # trg = es.textRank(doc_g_id)
-    # tfidf = es.Tfidf(doc_d_sen)
-    Eval_with_generator(ldg)
+    tfidf = es.Tfidf(doc_d_sen)
+    Eval_with_generator(tfidf)
 
 
