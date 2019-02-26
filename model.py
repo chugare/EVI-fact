@@ -415,7 +415,7 @@ class GEFG_WV(Base_model):
         return op
 
     def train_fun(self,sess,data_gen,ops,global_step):
-        evid_mat, evid_len, evid_count, fact_mat, fact_len = next(data_gen)
+        evid_mat, evid_len, evid_count, fact_mat, fact_len,raw_fact = next(data_gen)
         acc = 0.0
         nll,gate_value,ml_index,merge,_ = sess.run(
             [
