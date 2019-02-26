@@ -197,7 +197,7 @@ def valid_protype(meta):
                     out_seq = inter_res['out_seq']
                     fact_seq = inter_res['fact_seq']
 
-                    if source_name.endswith('WV'):
+                    if source_name == 'GEFG_WV':
                         out_sen = p.wordvec.get_sentence(out_seq)
                         fact_sen = fact_seq
                     else:
