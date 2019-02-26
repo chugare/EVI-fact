@@ -128,11 +128,11 @@ class WORD_VEC:
             if x == l:
                 break
             print('[INFO] Search for nearest word on index %d'%x)
-            print(vec)
             dis = cosine_similarity(self.vec_list, [vec])
             dis = np.reshape(dis, [-1])
             i = np.argmax(dis)
             x+= 1
+            print(word_list[i])
             result += self.word_list[i]
 
         return result
