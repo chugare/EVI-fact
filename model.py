@@ -711,12 +711,11 @@ class SEQ2SEQ(Base_model):
             'merge':merge
         }
     def inter_fun(self,sess,data_gen,ops):
-        evid_mat, evid_len, fact_mat, fact_len = next(data_gen)
+        evid_mat, evid_len, fact_mat, fact_len,_ = next(data_gen)
         output_seq, gate_value= sess.run(
             [ops['output_seq'], ops['gate_value']],
             feed_dict={ops['evid_mat']: evid_mat,
-                       ops['evid_len']: evid_len,
-                       ops['evid_count']: evid_count}
+                       ops['evid_len']: evid_len}
         )
         c = 0
         for i in output_seq:
