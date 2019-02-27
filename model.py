@@ -615,7 +615,7 @@ class SEQ2SEQ(Base_model):
                                         lambda: tf.nn.embedding_lookup(embedding_t,generated_seq.read(i-1)))
 
                 content_vec = tf.concat(values=[content_vec, last_word_vec], axis=0)
-                content_vec = tf.reshape(content_vec, [1, self.VEC_SIZE*2])
+                content_vec = tf.reshape(content_vec, [1, -1])
 
                 run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0], run_state[1])
 
