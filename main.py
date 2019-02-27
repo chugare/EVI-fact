@@ -297,11 +297,11 @@ ABS_VALID_meta ={
 }
 
 ABS_w_meta={
-    'name':'ABS',
+    'name':'ABS_w',
     'seg_by_word':True,
     'train_data':'train_data.json',
-    'checkpoint_dir':'checkpoint_ABS',
-    'summary_dir':'summary_ABS',
+    'checkpoint_dir':'checkpoint_ABS_w',
+    'summary_dir':'summary_ABS_w',
     'model':model.ABS_model,
     'data_meta':{
         'NAME':'ABS',
@@ -312,10 +312,10 @@ ABS_w_meta={
 
 }
 ABS_w_VALID_meta ={
-    'name':'ABS_VALID',
+    'name':'ABS_w_VALID',
     'eval_data':'test_data.json',
-    'checkpoint_dir': 'checkpoint_ABS',
-    'summary_dir':'summary_ABS_V',
+    'checkpoint_dir': 'checkpoint_ABS_w',
+    'summary_dir':'summary_ABS_w',
     'seg_by_word':True,
     'model':model.ABS_model,
     'data_meta':{
