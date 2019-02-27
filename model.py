@@ -64,10 +64,10 @@ class GEFG_WV(Base_model):
         self.MAX_VOCA_SZIE = 10000
         self.VEC_SIZE = 300
         self.DECODER_NUM_UNIT = 2*self.VEC_SIZE
-        self.LR = 0.002
+        self.LR = 0.0001
         self.OH_ENCODER = False
         self.DECAY_STEP = 1
-        self.DECAY_RATE = 0.8
+        self.DECAY_RATE = 0.5
         self.CONTEXT_LEN = 20
         self.HIDDEN_SIZE = 300
 
@@ -738,7 +738,7 @@ class ABS_model(Base_model):
     def __init__(self, config=None):
         self.NUM_UNIT = 100
         self.H = 200  # 输入词向量维度大小
-        self.V = 160000  # 词汇量
+        self.V = 10000  # 词汇量
         self.D = 200  # 输出词向量维度大小
         self.C = 30  # 输出感受范围
         self.DC_LAYER = 2
