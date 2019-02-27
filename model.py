@@ -615,7 +615,7 @@ class SEQ2SEQ(Base_model):
                                         lambda: tf.nn.embedding_lookup(embedding_t,generated_seq.read(i-1)))
 
                 content_vec = tf.concat(values=[content_vec, last_word_vec], axis=0)
-                content_vec = tf.reshape(content_vec, [1, -1])
+                content_vec = tf.reshape(content_vec, [1,enc_output.shape[1]+self.VEC_SIZE])
 
                 decoder_output, run_state = decoder_cell(content_vec, run_state)
                 mat_mul = map_out_w * decoder_output
