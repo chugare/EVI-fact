@@ -617,12 +617,11 @@ class SEQ2SEQ(Base_model):
                 content_vec = tf.concat(values=[content_vec, last_word_vec], axis=0)
                 content_vec = tf.reshape(content_vec, [1, -1])
 
-                run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0], run_state[1])
-
                 decoder_output, run_state = decoder_cell(content_vec, run_state)
                 mat_mul = map_out_w * decoder_output
                 dis_v = tf.add(tf.reduce_sum(mat_mul, 1), map_out_b)
                 char_most_pro = tf.argmax(dis_v)
+                run_state = tf.nn.rnn_cell.LSTMStateTuple(run_state[0], run_state[1])
                 generated_seq = generated_seq.write(i, tf.cast(char_most_pro,tf.int32))
             # 生成context向量
             _state_seq = _state_seq.write(i, run_state)
