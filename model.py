@@ -480,7 +480,7 @@ class SEQ2SEQ(Base_model):
         self.MAX_VOCA_SZIE = 10000
         self.VEC_SIZE = 100
         self.DECODER_NUM_UNIT = 200
-        self.LR = 0.002
+        self.LR = 0.0002
         self.OH_ENCODER = False
         self.DECAY_STEP = 1
         self.DECAY_RATE = 0.8
@@ -742,7 +742,7 @@ class ABS_model(Base_model):
         self.D = 200  # 输出词向量维度大小
         self.C = 30  # 输出感受范围
         self.DC_LAYER = 2
-        self.BATCH_SIZE = 50
+        self.BATCH_SIZE = 64
         self.Q = 100
         self.LR = 0.001
         self.DECAY_STEP = 5

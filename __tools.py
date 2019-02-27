@@ -33,6 +33,18 @@ rouge-l f : 0.120354
 rouge-l p : 0.316033
 rouge-l r : 0.112838
 """
+
+str_s2s = """
+rouge-1 f : 0.387173
+rouge-1 p : 0.502756
+rouge-1 r : 0.330655
+rouge-2 f : 0.167018
+rouge-2 p : 0.223973
+rouge-2 r : 0.141944
+rouge-l f : 0.237955
+rouge-l p : 0.340113
+rouge-l r : 0.221370
+"""
 def divide_result(str1):
     ls = str1.split('\n')
     name = []
@@ -156,6 +168,6 @@ def analyse_gate_res():
     print(path)
 if __name__ == '__main__':
 
-    divide_result(str_tf)
+    divide_result(str_s2s)
     # analyse_gate_res()
     # read_from_gate_report()

@@ -281,6 +281,20 @@ ABS_meta={
     }
 
 }
+ABS_VALID_meta ={
+    'name':'ABS_VALID',
+    'eval_data':'test_data.json',
+    'checkpoint_dir': 'checkpoint_ABS',
+    'summary_dir':'summary_ABS_V',
+    'seg_by_word':False,
+    'model':model.ABS_model,
+    'data_meta':{
+        'NAME':'ABS_infer',
+        'C':ABS.C,
+        'V':ABS.V,
+        'BATCH_SIZE':ABS.BATCH_SIZE
+    }
+}
 GEFG_WV_VALID_meta={
     'name':'GEFG_WV',
     'seg_by_word': False,
@@ -297,20 +311,7 @@ GEFG_WV_VALID_meta={
         'BATCH_SIZE':1
     }
 }
-ABS_VALID_meta ={
-    'name':'ABS_VALID',
-    'eval_data':'test_data.json',
-    'checkpoint_dir': 'checkpoint_ABS',
-    'summary_dir':'summary_ABS_V',
-    'seg_by_word':False,
-    'model':model.ABS_model,
-    'data_meta':{
-        'NAME':'ABS_infer',
-        'C':ABS.C,
-        'V':ABS.V,
-        'BATCH_SIZE':ABS.BATCH_SIZE
-    }
-}
+
 
 
 S2S_meta={

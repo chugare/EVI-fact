@@ -13,7 +13,7 @@ import jieba
 import numpy as np
 import re
 import json
-# import pkuseg
+import pkuseg
 import sys
 import os
 import struct
@@ -209,7 +209,7 @@ class Preprocessor:
     def init_dic(self, source_file):
         #   第一次建立字典的时候调用
         dic_count = {}
-        seg = PKUSeg()
+        seg = pkuseg.PKUSeg()
         try:
             data_gen = self.read_file(source_file)
             count = 0
@@ -510,20 +510,20 @@ def init():
     p.init_dic('RAW_DATA.json')
 if __name__ == '__main__':
 
-
-    jsfile = open('FORMAT_data.json','r',encoding='utf-8')
-    data = json.load(jsfile)
-    ellist = []
-    for d in data:
-        evid = d['evid']
-        c = 0
-        for e in evid:
-            c += len(e)
-        ellist.append(c)
-    ellist.sort()
-    all = len(ellist)
-    for i in range(10):
-        print(ellist[int(all*i/10)])
-    print(ellist[-1])
+    p = Preprocessor()
+    # jsfile = open('FORMAT_data.json','r',encoding='utf-8')
+    # data = json.load(jsfile)
+    # ellist = []
+    # for d in data:
+    #     evid = d['evid']
+    #     c = 0
+    #     for e in evid:
+    #         c += len(e)
+    #     ellist.append(c)
+    # ellist.sort()
+    # all = len(ellist)
+    # for i in range(10):
+    #     print(ellist[int(all*i/10)])
+    # print(ellist[-1])
     # wv.dump_file()
     # WORD_VEC.clear_ulw('F:/python/word_vec/sgns.merge.char')
