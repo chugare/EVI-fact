@@ -301,7 +301,8 @@ class Preprocessor:
                 ec_vecs.append(self.GRAM2N[gram])
             else:
                 # 当词典中没有对应的词时，简单的把单词变成unk符号，抑或是进行进一步的分词？
-                ec_vecs.append(0)
+                continue
+                # ec_vecs.append(0)
         ec_vecs.append(1)
         return np.array(ec_vecs, np.int32)
 

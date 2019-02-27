@@ -1,5 +1,17 @@
 import json
 import os
+str_abs = """
+rouge-1 f : 0.381940
+rouge-1 p : 0.555852
+rouge-1 r : 0.308336
+rouge-2 f : 0.158272
+rouge-2 p : 0.235789
+rouge-2 r : 0.129209
+rouge-l f : 0.213546
+rouge-l p : 0.360167
+rouge-l r : 0.195565
+"""
+
 str_gefg_nnlm = """
 rouge-1 f : 0.283107
 rouge-1 p : 0.466776
@@ -168,6 +180,6 @@ def analyse_gate_res():
     print(path)
 if __name__ == '__main__':
 
-    divide_result(str_s2s)
+    divide_result(str_abs)
     # analyse_gate_res()
     # read_from_gate_report()

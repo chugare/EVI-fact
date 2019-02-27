@@ -295,6 +295,36 @@ ABS_VALID_meta ={
         'BATCH_SIZE':ABS.BATCH_SIZE
     }
 }
+
+ABS_w_meta={
+    'name':'ABS',
+    'seg_by_word':True,
+    'train_data':'train_data.json',
+    'checkpoint_dir':'checkpoint_ABS',
+    'summary_dir':'summary_ABS',
+    'model':model.ABS_model,
+    'data_meta':{
+        'NAME':'ABS',
+        'C':ABS.C,
+        'V':ABS.V,
+        'BATCH_SIZE':ABS.BATCH_SIZE
+    }
+
+}
+ABS_w_VALID_meta ={
+    'name':'ABS_VALID',
+    'eval_data':'test_data.json',
+    'checkpoint_dir': 'checkpoint_ABS',
+    'summary_dir':'summary_ABS_V',
+    'seg_by_word':True,
+    'model':model.ABS_model,
+    'data_meta':{
+        'NAME':'ABS_infer',
+        'C':ABS.C,
+        'V':ABS.V,
+        'BATCH_SIZE':ABS.BATCH_SIZE
+    }
+}
 GEFG_WV_VALID_meta={
     'name':'GEFG_WV',
     'seg_by_word': False,
@@ -355,6 +385,11 @@ if __name__ == '__main__':
             valid_protype(meta=ABS_VALID_meta)
         if sys.argv[2] == 't':
             train_protype(meta= ABS_meta)
+    elif sys.argv[1] == 'ABS_w':
+        if sys.argv[2] == 'v':
+            valid_protype(meta=ABS_w_VALID_meta)
+        if sys.argv[2] == 't':
+            train_protype(meta= ABS_w_meta)
     elif sys.argv[1] == 'S2S':
         if sys.argv[2] == 'v':
             valid_protype(meta=S2S_VALID_meta)

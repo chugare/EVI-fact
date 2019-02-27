@@ -738,11 +738,11 @@ class ABS_model(Base_model):
     def __init__(self, config=None):
         self.NUM_UNIT = 100
         self.H = 200  # 输入词向量维度大小
-        self.V = 10000  # 词汇量
+        self.V = 160000  # 词汇量
         self.D = 200  # 输出词向量维度大小
         self.C = 30  # 输出感受范围
         self.DC_LAYER = 2
-        self.BATCH_SIZE = 64
+        self.BATCH_SIZE = 32
         self.Q = 100
         self.LR = 0.001
         self.DECAY_STEP = 5
