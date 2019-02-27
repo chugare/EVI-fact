@@ -718,10 +718,10 @@ class SEQ2SEQ(Base_model):
                        ops['evid_len']: evid_len}
         )
         c = 0
-        print(output_seq[0])
 
-        for i in output_seq[0]:
-            print(i)
+        output_seq = output_seq[0]
+        for i in output_seq:
+
             if i != 1:
                 c+=1
 
