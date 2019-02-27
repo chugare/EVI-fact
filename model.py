@@ -718,12 +718,12 @@ class SEQ2SEQ(Base_model):
                        ops['evid_len']: evid_len}
         )
         c = 0
-        for i in output_seq:
+        for i in output_seq[0]:
             if i != 1:
                 c+=1
 
         output_seq = output_seq[:c]
-        print(gate_value)
+
         return {
             'out_seq':output_seq,
             'fact_seq':fact_mat,
