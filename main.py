@@ -171,6 +171,7 @@ def valid_protype(meta):
         checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
         sess.graph.finalize()
         if checkpoint:
+            print(checkpoint)
             saver.restore(sess, checkpoint)
             print('[INFO] 从检查点 %s 进行验证'%checkpoint)
         else:
