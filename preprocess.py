@@ -462,6 +462,8 @@ class Preprocessor:
             if self.wordvec is None:
                 wordvec =  WORD_VEC()
                 self.wordvec = wordvec
+            else:
+                wordvec = self.wordvec
             try:
                 mel = meta['MEL']
                 mec = meta['MEC']
