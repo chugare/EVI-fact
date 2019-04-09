@@ -11,6 +11,7 @@ import jieba
 import math
 import json
 import numpy as np
+import sys
 from sklearn.metrics.pairwise import cosine_similarity
 root_dic = '/Users/simengzhao/Desktop/项目/FactExtraction/2015'
 filter_choose = ['证人证言','被告人供述和辩解']
@@ -41,7 +42,64 @@ def calc_evid_type():
     res_file = open('evid_type_count.txt','w',encoding='utf-8')
     for k in evids:
         res_file.write('%s\t%d\n'%(k,evids[k]))
+def analyse_word_freq():
+    jfile = open('RAW_DATA.json','r',encoding='utf-8')
+    data = json.load(jfile)
 
+    word_count_map = {}
+    word_dis_map = {}
+    i = 0
+    for case in data:
+        i+=1
+        if i%100==0:
+            print("[INFO] Now process case %d"%i)
+        fact = case['fact']
+        evids = case['evid']
+        all_sen = fact + ''.join(evids)
+        words = jieba.lcut(all_sen)
+        word_tmp_dis = {}
+        for  word in words:
+            if word not in word_count_map:
+                word_count_map[word] = 0
+            if word not in word_tmp_dis:
+                word_tmp_dis[word] = 0
+            word_count_map[word] += 1
+            word_tmp_dis[word] += 1
+        for t in word_tmp_dis:
+            if t not in word_dis_map:
+                word_dis_map[t] = []
+            word_dis_map[t].append(word_tmp_dis[t])
+
+
+    count_file = open('word_count.json','w',encoding='utf-8')
+    dis_file = open('word_dis.json','w',encoding='utf-8')
+    json.dump(word_count_map,count_file,ensure_ascii=False)
+    json.dump(word_dis_map,dis_file,ensure_ascii=False)
+
+def var_analyse():
+    dfile = open('word_dis.json','r',encoding='utf-8')
+    word_dis = json.load(dfile)
+    cfile = open('word_count.json','r',encoding='utf-8')
+    word_count = json.load(cfile)
+    jfile = open('RAW_DATA.json', 'r', encoding='utf-8')
+    data = json.load(jfile)
+
+    for case in data:
+        fact = case['fact']
+        evids = case['evid']
+
+        ws = jieba.lcut(fact)
+        for w in ws:
+            var = -1
+            count = -1
+            if w in word_dis:
+                var = np.var(word_dis[w])
+            if w in word_count:
+                count = word_count[w]
+            # print(count)
+            sys.stdout.write("%s %.2f %d"%(w,var,count))
+        print('')
+        input()
 
 # def idf_count(lib):
 #     fl = os.listdir(lib)
@@ -137,5 +195,5 @@ def sentence_simplified_process(str):
 
     return str
 if __name__ == '__main__':
-    t_generate_tfidf()
-
+    # analyse_word_freq()
+    var_analyse()
